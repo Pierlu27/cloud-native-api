@@ -65,6 +65,7 @@ GET /actuator/health
 - Deployment: `docs/deployment.md`
 - Security: `docs/security.md`
 - Architecture decisions: `docs/decisions.md`
+- Local toolchain setup (Terraform + gcloud): `docs/local-toolchain-setup.md`
 
 ## Initial milestones already set
 

@@ -7,8 +7,6 @@ Progetto didattico per costruire una pipeline **cloud-native CI/CD end-to-end** 
 - Security (secrets, IAM, scanning)
 - Observability (logging/monitoring)
 
-L'obiettivo non è una business app complessa, ma dimostrare che sai **progettare, rilasciare e operare** un backend in produzione.
-
 ## Approccio di lavoro (spec-driven)
 
 Ogni fase viene sviluppata partendo da una spec in `specs/phases/`:
@@ -74,7 +72,3 @@ GET /actuator/health
 - Gradle Wrapper
 - struttura `docs/`, `specs/`, `terraform/`, `.github/workflows/`
 - template spec per lavorare fase per fase
-
-## Nota portfolio/CV
-
-Inserisci nel CV solo competenze effettivamente implementate e spiegabili in colloquio, con evidenze concrete (workflow, IaC, diagrammi, runbook, screenshot, log, metriche).

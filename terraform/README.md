@@ -1,8 +1,8 @@
 # Terraform (Phase 8)
 
-Questa cartella ospiterà l'infrastruttura GCP come codice nelle fasi successive.
+This folder will contain the GCP infrastructure as code in later phases.
 
-Struttura prevista:
+Planned structure:
 
 - `providers.tf`
 - `versions.tf`
@@ -10,4 +10,3 @@ Struttura prevista:
 - `variables.tf`
 - `outputs.tf`
 - `modules/`
-

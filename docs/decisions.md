@@ -2,21 +2,20 @@
 
 ## ADR-001 Cloud Run
 
-**Decisione**: usare Cloud Run come compute layer iniziale.  
-**Motivo**: gestione semplificata, autoscaling, focus didattico su CI/CD.
+**Decision**: use Cloud Run as the initial compute layer.  
+**Reason**: simpler operations, autoscaling, learning focus on CI/CD.
 
 ## ADR-002 Cloud SQL
 
-**Decisione**: usare Cloud SQL PostgreSQL.  
-**Motivo**: separare compute e data layer, pratica su managed DB.
+**Decision**: use Cloud SQL PostgreSQL.  
+**Reason**: separate compute and data layers, practice with a managed DB.
 
 ## ADR-003 Terraform
 
-**Decisione**: provisioning via IaC.  
-**Motivo**: riproducibilità, versioning infrastruttura, revisione in PR.
+**Decision**: provision infrastructure through IaC.  
+**Reason**: reproducibility, infrastructure versioning, PR-based review.
 
 ## ADR-004 GitHub Actions
 
-**Decisione**: CI/CD su Actions.  
-**Motivo**: integrazione nativa con repository e learning path DevOps.
-
+**Decision**: run CI/CD on GitHub Actions.  
+**Reason**: native repository integration and DevOps learning path.

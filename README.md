@@ -1,24 +1,24 @@
 # Cloud-Native API (Spec-Driven Learning Project)
 
-Progetto didattico per costruire una pipeline **cloud-native CI/CD end-to-end** su GCP, con focus su:
+Learning-focused project to build an **end-to-end cloud-native CI/CD pipeline** on GCP, with focus on:
 
-- Continuous Integration e Continuous Delivery
+- Continuous Integration and Continuous Delivery
 - Infrastructure as Code (Terraform)
 - Security (secrets, IAM, scanning)
 - Observability (logging/monitoring)
 
-## Approccio di lavoro (spec-driven)
+## Working approach (spec-driven)
 
-Ogni fase viene sviluppata partendo da una spec in `specs/phases/`:
+Each phase starts from a spec in `specs/phases/`:
 
-1. **Scope** (cosa implementare)
-2. **Acceptance criteria** (definizione oggettiva di completamento)
-3. **Evidence** (output verificabili per CV/portfolio)
-4. **Decision log** (perché questa scelta e non alternative)
+1. **Scope** (what to implement)
+2. **Acceptance criteria** (objective completion criteria)
+3. **Evidence** (verifiable outputs)
+4. **Decision log** (why this choice over alternatives)
 
 Template: `specs/SPEC_TEMPLATE.md`
 
-## Struttura repository
+## Repository structure
 
 ```text
 cloud-native-api/
@@ -30,23 +30,23 @@ cloud-native-api/
 └── terraform/
 ```
 
-## Roadmap sintetica
+## High-level roadmap
 
-- Phase 0: setup + architettura
+- Phase 0: setup + architecture
 - Phase 1: backend API + test
 - Phase 2: Docker + compose
 - Phase 3-4: CI + quality/security gates
 - Phase 5-10: artifact registry + cloud deploy + CD
-- Phase 11-13: ambienti, observability, cost
+- Phase 11-13: environments, observability, cost
 
-## Avvio locale (stato attuale bootstrap)
+## Local run (current bootstrap state)
 
-Prerequisiti:
+Prerequisites:
 
 - Java 25
-- Docker (opzionale per le fasi container)
+- Docker (optional for container phases)
 
-Comandi:
+Commands:
 
 ```bash
 ./gradlew clean test build
@@ -59,16 +59,16 @@ Health endpoint:
 GET /actuator/health
 ```
 
-## Documentazione
+## Documentation
 
-- Architettura: `docs/architecture.md`
+- Architecture: `docs/architecture.md`
 - Deployment: `docs/deployment.md`
 - Security: `docs/security.md`
-- Decisioni architetturali: `docs/decisions.md`
+- Architecture decisions: `docs/decisions.md`
 
-## Prime milestone già impostate
+## Initial milestones already set
 
-- bootstrap Spring Boot + test `contextLoads`
+- Spring Boot bootstrap + `contextLoads` test
 - Gradle Wrapper
-- struttura `docs/`, `specs/`, `terraform/`, `.github/workflows/`
-- template spec per lavorare fase per fase
+- `docs/`, `specs/`, `terraform/`, `.github/workflows/` structure
+- spec template for phase-by-phase work

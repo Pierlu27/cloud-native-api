@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Descrivi il risultato che vuoi ottenere.
+Describe the outcome you want to achieve.
 
 ## 2. Scope
 
@@ -27,28 +27,27 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] criterio 1 verificabile
-- [ ] criterio 2 verificabile
+- [ ] verifiable criterion 1
+- [ ] verifiable criterion 2
 
 ## 6. Deliverables
 
-- codice:
+- code:
 - workflow:
-- documentazione:
+- documentation:
 
 ## 7. Evidence
 
-- screenshot/log/report da raccogliere:
+- screenshots/logs/reports to collect:
 
 ## 8. Risks and mitigations
 
-- rischio:
-- mitigazione:
+- risk:
+- mitigation:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementazione completa
+- [ ] implementation completed
 - [ ] test pass
-- [ ] doc aggiornata
-- [ ] decisioni registrate (se necessario)
-
+- [ ] documentation updated
+- [ ] decisions recorded (if needed)

@@ -1,23 +1,22 @@
 # Deployment Guide
 
-## Prerequisiti
+## Prerequisites
 
-- progetto GCP
-- account con ruoli minimi necessari
+- GCP project
+- account with the minimum required roles
 - gcloud CLI
 - Terraform
-- repository GitHub con secrets configurati
+- GitHub repository with configured secrets
 
-## Flusso target
+## Target flow
 
-1. Provisioning infrastruttura con Terraform
+1. Infrastructure provisioning with Terraform
 2. Build + test + scan in CI
-3. Build/push immagine su Artifact Registry
-4. Deploy su Cloud Run
-5. Verifica health endpoint e logs
+3. Build/push image to Artifact Registry
+4. Deploy to Cloud Run
+5. Verify health endpoint and logs
 
-## Rollback (da completare in Phase 10)
+## Rollback (to complete in Phase 10)
 
-- usare revision precedente di Cloud Run
-- mantenere tagging immagine versionato (no solo `latest`)
-
+- use the previous Cloud Run revision
+- keep versioned image tags (not only `latest`)

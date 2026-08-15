@@ -1,10 +1,9 @@
 # Specs
 
-Cartella per lo sviluppo **spec-driven** del progetto.
+Folder for the project’s **spec-driven** development workflow.
 
-- Ogni fase ha una spec in `specs/phases/`.
-- Le spec sono la fonte di verità prima di implementare.
-- Le PR dovrebbero referenziare la spec corrispondente.
+- Each phase has a spec in `specs/phases/`.
+- Specs are the source of truth before implementation.
+- PRs should reference the related spec.
 
-Template base: `specs/SPEC_TEMPLATE.md`
-
+Base template: `specs/SPEC_TEMPLATE.md`

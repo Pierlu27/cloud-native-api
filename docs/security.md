@@ -1,20 +1,19 @@
 # Security Notes
 
-## Principi
+## Principles
 
-- least privilege su IAM
-- niente secrets nel repository
-- scansioni automatiche in CI
+- IAM least privilege
+- no secrets in the repository
+- automated CI scans
 
-## Controlli previsti
+## Planned controls
 
 - dependency scanning
 - secret scanning
 - container image scanning
 
-## Evidenze
+## Evidence
 
-- report scan allegati ai workflow
-- elenco ruoli IAM assegnati
-- decisioni documentate in `docs/decisions.md`
-
+- scan reports attached to workflows
+- list of assigned IAM roles
+- decisions documented in `docs/decisions.md`

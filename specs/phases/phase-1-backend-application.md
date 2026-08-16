@@ -53,7 +53,7 @@ Out of scope:
 - [x] OpenAPI/Swagger UI accessible and reflecting all endpoints
 - [x] unit tests covering service layer logic
 - [x] integration tests covering the API endpoints using Testcontainers with a real PostgreSQL instance
-- [ ] `./gradlew clean build` passes locally and on CI
+- [x] `./gradlew clean build` passes locally and on CI
 
 ## 6. Deliverables
 
@@ -80,6 +80,6 @@ Out of scope:
 ## 9. Definition of done (phase)
 
 - [x] implementation complete (entity, DTOs, controller, service, repository, exception handling, OpenAPI docs)
-- [ ] tests pass (unit and integration tests green locally and on CI)
+- [x] tests pass (unit and integration tests green locally and on CI)
 - [x] documentation updated (README API section, OpenAPI spec accessible)
-- [ ] decisions recorded (if needed, e.g. validation strategy, exception handling approach) in `docs/decisions.md` or equivalent
+- [x] decisions recorded (if needed, e.g. validation strategy, exception handling approach) in `docs/decisions.md` or equivalent

@@ -44,7 +44,8 @@ cloud-native-api/
 Prerequisites:
 
 - Java 25
-- Docker (optional for container phases)
+- Docker
+- PostgreSQL 16+ for local development, or Testcontainers for tests
 
 Commands:
 
@@ -59,8 +60,45 @@ Health endpoint:
 GET /actuator/health
 ```
 
+## Phase 1 API
+
+Base path: `/api/jobs`
+
+- `POST /api/jobs`
+- `GET /api/jobs`
+- `GET /api/jobs/{id}`
+- `PUT /api/jobs/{id}`
+- `DELETE /api/jobs/{id}`
+
+API docs:
+
+- Swagger UI: `/swagger-ui/index.html`
+- OpenAPI JSON: `/v3/api-docs`
+
+### Local database configuration
+
+Set these environment variables when running against a local PostgreSQL instance:
+
+```bash
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/cloud_native_api
+export SPRING_DATASOURCE_USERNAME=cloud_native_api
+export SPRING_DATASOURCE_PASSWORD=cloud_native_api
+```
+
+Example PostgreSQL container:
+
+```bash
+docker run --name cloud-native-api-postgres \
+  -e POSTGRES_DB=cloud_native_api \
+  -e POSTGRES_USER=cloud_native_api \
+  -e POSTGRES_PASSWORD=cloud_native_api \
+  -p 5432:5432 \
+  -d postgres:16-alpine
+```
+
 ## Documentation
 
+- Docs index: `docs/README.md`
 - Architecture: `docs/architecture.md`
 - Deployment: `docs/deployment.md`
 - Security: `docs/security.md`

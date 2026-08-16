@@ -2,9 +2,10 @@ spring:
   application:
     name: cloud-native-api
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cloud_native_api}
-    username: ${SPRING_DATASOURCE_USERNAME:cloud_native_api}
-    password: ${SPRING_DATASOURCE_PASSWORD:cloud_native_api}
+    # Local and deployed credentials are supplied exclusively through the environment.
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

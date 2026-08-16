@@ -82,7 +82,7 @@ Set these environment variables when running against a local PostgreSQL instance
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/cloud_native_api
 export SPRING_DATASOURCE_USERNAME=cloud_native_api
-export SPRING_DATASOURCE_PASSWORD=cloud_native_api
+export SPRING_DATASOURCE_PASSWORD='<your-local-password>'
 ```
 
 Example PostgreSQL container:
@@ -91,7 +91,7 @@ Example PostgreSQL container:
 docker run --name cloud-native-api-postgres \
   -e POSTGRES_DB=cloud_native_api \
   -e POSTGRES_USER=cloud_native_api \
-  -e POSTGRES_PASSWORD=cloud_native_api \
+  -e POSTGRES_PASSWORD='<your-local-password>' \
   -p 5432:5432 \
   -d postgres:16-alpine
 ```
@@ -104,6 +104,7 @@ docker run --name cloud-native-api-postgres \
 - Security: `docs/security.md`
 - Architecture decisions: `docs/decisions.md`
 - Local toolchain setup (Terraform + gcloud): `docs/local-toolchain-setup.md`
+- Phase 1 verification evidence: `docs/phase-1-verification.md`
 
 ## Initial milestones already set
 

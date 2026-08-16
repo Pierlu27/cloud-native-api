@@ -72,6 +72,11 @@ class JobControllerIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].id").value(id.toString()));
 
+		mockMvc.perform(get("/api/jobs/{id}", id))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(id.toString()))
+			.andExpect(jsonPath("$.title").value("Build pipeline"));
+
 		mockMvc.perform(put("/api/jobs/{id}", id)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -101,9 +106,13 @@ class JobControllerIntegrationTest {
 
 	@Test
 	void returns404ForMissingJob() throws Exception {
-		mockMvc.perform(get("/api/jobs/{id}", UUID.randomUUID()))
+		var id = UUID.randomUUID();
+
+		mockMvc.perform(get("/api/jobs/{id}", id))
 			.andExpect(status().isNotFound())
-			.andExpect(jsonPath("$.status").value(404));
+			.andExpect(jsonPath("$.status").value(404))
+			.andExpect(jsonPath("$.error").value("Not Found"))
+			.andExpect(jsonPath("$.path").value("/api/jobs/" + id));
 	}
 
 	@Test
@@ -112,5 +121,8 @@ class JobControllerIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.paths['/api/jobs']").exists())
 			.andExpect(jsonPath("$.paths['/api/jobs/{id}']").exists());
+
+		mockMvc.perform(get("/swagger-ui/index.html"))
+			.andExpect(status().isOk());
 	}
 }

@@ -38,6 +38,16 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI(), List.of());
 	}
 
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
+		return build(
+			HttpStatus.INTERNAL_SERVER_ERROR,
+			"An unexpected error occurred",
+			request.getRequestURI(),
+			List.of()
+		);
+	}
+
 	private static ResponseEntity<ApiErrorResponse> build(HttpStatus status, String message, String path, List<String> details) {
 		var body = new ApiErrorResponse(Instant.now(), status.value(), status.getReasonPhrase(), message, path, details);
 		return ResponseEntity.status(status).body(body);

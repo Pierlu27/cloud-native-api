@@ -34,7 +34,7 @@ public class JobController {
 	private final JobService jobService;
 
 	@PostMapping
-	@Operation(summary = "Create a job")
+	@Operation(summary = "Create a job", description = "Creates a job with PENDING status and server-generated timestamps.")
 	public ResponseEntity<JobResponse> create(@Valid @RequestBody JobCreateRequest request) {
 		var response = jobService.create(request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -45,25 +45,25 @@ public class JobController {
 	}
 
 	@GetMapping
-	@Operation(summary = "List jobs")
+	@Operation(summary = "List jobs", description = "Returns every stored job.")
 	public List<JobResponse> list() {
 		return jobService.findAll();
 	}
 
 	@GetMapping("/{id}")
-	@Operation(summary = "Get a job by id")
+	@Operation(summary = "Get a job by id", description = "Returns a single job or a consistent 404 error response.")
 	public JobResponse getById(@PathVariable UUID id) {
 		return jobService.findById(id);
 	}
 
 	@PutMapping("/{id}")
-	@Operation(summary = "Update a job")
+	@Operation(summary = "Update a job", description = "Updates one or more job fields and refreshes updatedAt.")
 	public JobResponse update(@PathVariable UUID id, @Valid @RequestBody JobUpdateRequest request) {
 		return jobService.update(id, request);
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete a job")
+	@Operation(summary = "Delete a job", description = "Deletes a job and returns 404 when it does not exist.")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable UUID id) {
 		jobService.delete(id);

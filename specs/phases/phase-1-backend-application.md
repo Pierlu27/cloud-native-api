@@ -40,20 +40,20 @@ Out of scope:
 
 ## 4. Non-functional requirements
 
-- CI gate: `./gradlew test` must pass, including unit and integration tests, before this phase is considered complete.
+- CI gate: `./gradlew clean build` must pass, including unit and integration tests, before this phase is considered complete.
 - Security: no plaintext credentials in code or config; database connection settings for local development must be externalized (e.g. environment variables or `application.yml` profiles), even though full secrets management is out of scope until Phase 9.
 - Observability: none required yet beyond default Spring Boot logging; structured logging and monitoring are introduced in Phase 12.
 
 ## 5. Acceptance criteria
 
-- [ ] all five endpoints implemented and manually verified (e.g. via curl or Swagger UI)
-- [ ] request validation returns 400 with a meaningful error message on invalid input
-- [ ] centralized exception handler returns consistent error responses (e.g. for 404 and 400 cases)
-- [ ] Job entity persisted correctly in PostgreSQL, verified via a running local database
-- [ ] OpenAPI/Swagger UI accessible and reflecting all endpoints
-- [ ] unit tests covering service layer logic
-- [ ] integration tests covering the API endpoints using Testcontainers with a real PostgreSQL instance
-- [ ] `./gradlew test` passes locally and on CI
+- [x] all five endpoints implemented and manually verified (e.g. via curl or Swagger UI)
+- [x] request validation returns 400 with a meaningful error message on invalid input
+- [x] centralized exception handler returns consistent error responses (e.g. for 404 and 400 cases)
+- [x] Job entity persisted correctly in PostgreSQL, verified via a running local database
+- [x] OpenAPI/Swagger UI accessible and reflecting all endpoints
+- [x] unit tests covering service layer logic
+- [x] integration tests covering the API endpoints using Testcontainers with a real PostgreSQL instance
+- [ ] `./gradlew clean build` passes locally and on CI
 
 ## 6. Deliverables
 
@@ -65,7 +65,7 @@ Out of scope:
 
 - sample requests/responses for each endpoint (e.g. curl commands or Postman collection export)
 - screenshot of Swagger UI showing all endpoints
-- local test run output (`./gradlew test`) showing unit and integration tests passing
+- local run output (`./gradlew clean build`) showing unit and integration tests passing
 - CI run link/screenshot confirming the pipeline is green with this phase's tests included
 
 ## 8. Risks and mitigations
@@ -79,7 +79,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (entity, DTOs, controller, service, repository, exception handling, OpenAPI docs)
+- [x] implementation complete (entity, DTOs, controller, service, repository, exception handling, OpenAPI docs)
 - [ ] tests pass (unit and integration tests green locally and on CI)
-- [ ] documentation updated (README API section, OpenAPI spec accessible)
+- [x] documentation updated (README API section, OpenAPI spec accessible)
 - [ ] decisions recorded (if needed, e.g. validation strategy, exception handling approach) in `docs/decisions.md` or equivalent

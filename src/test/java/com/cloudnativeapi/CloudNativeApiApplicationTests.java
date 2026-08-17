@@ -8,6 +8,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
 @Testcontainers
 @SpringBootTest
 class CloudNativeApiApplicationTests {
@@ -27,6 +29,7 @@ class CloudNativeApiApplicationTests {
 
 	@Test
 	void contextLoads() {
+		fail("Intentional failure to verify the Phase 3 CI quality gate");
 	}
 
 }

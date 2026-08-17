@@ -24,4 +24,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build and test
-        run: ./gradlew clean test build --no-daemon
+        run: ./gradlew clean build --no-daemon

@@ -96,6 +96,25 @@ docker run --name cloud-native-api-postgres \
   -d postgres:16-alpine
 ```
 
+## Run with Docker Compose
+
+Docker Compose starts the API and its PostgreSQL dependency together.
+Set local credentials using either environment variables in the shell or a local .env file (which is not stored in the image or repository), 
+then build and start the stack:
+
+```powershell
+$env:POSTGRES_DB='cloud_native_api'
+$env:POSTGRES_USER='cloud_native_api'
+$env:POSTGRES_PASSWORD='<choose-a-local-password>'
+docker compose up --build
+```
+
+The API is available at `http://localhost:8080`, with Swagger UI at
+`http://localhost:8080/swagger-ui/index.html`. Use `docker compose ps` to check the
+health status. PostgreSQL data is retained in the named `postgres-data` volume across
+`docker compose down` and subsequent `docker compose up` runs; use `docker compose down -v`
+only when intentionally discarding local data.
+
 ## Documentation
 
 - Docs index: `docs/README.md`

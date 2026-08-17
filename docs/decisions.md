@@ -19,3 +19,13 @@
 
 **Decision**: run CI/CD on GitHub Actions.  
 **Reason**: native repository integration and DevOps learning path.
+
+## ADR-005 Local Docker Compose stack
+
+**Decision**: package the API with a multi-stage Docker build using an Eclipse Temurin
+Alpine JRE runtime, run it as a non-root user, and use Docker Compose with a named
+PostgreSQL volume for local development.
+
+**Reason**: the runtime image contains only the application, JRE and health-check tool;
+the non-root user reduces container privileges; the named volume preserves local data
+across compose restarts while keeping the setup disposable with `docker compose down -v`.

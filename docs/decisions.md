@@ -43,8 +43,9 @@ unacceptably slow.
 
 ## ADR-007 Phase 4 quality and security gates
 
-**Decision**: use OWASP Dependency-Check with a CVSS 7.0 blocking threshold,
-Gitleaks for full-history secret scanning, and Checkstyle for static analysis.
+**Decision**: use OWASP Dependency-Check on the API runtime classpath with a
+CVSS 7.0 blocking threshold, Gitleaks for full-history secret scanning, and
+Checkstyle for static analysis.
 
 **Reason**: the tools work with the Java/Gradle application and provide CI-visible
 reports. A CVSS 7.0 threshold blocks high and critical dependency vulnerabilities

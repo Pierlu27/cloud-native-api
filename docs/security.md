@@ -8,7 +8,7 @@ jobs. A pull request is ready to merge only when all required jobs pass.
 | Job | Tool | Result | Blocking policy |
 | --- | --- | --- | --- |
 | Build and test | Gradle + Testcontainers | Compilation, unit tests, and PostgreSQL-backed integration tests | Any failure blocks the pipeline |
-| Dependency scan | OWASP Dependency-Check | HTML, JSON, and SARIF dependency vulnerability reports | CVSS 7.0 or higher blocks the pipeline |
+| Dependency scan | OWASP Dependency-Check | HTML, JSON, and SARIF reports for the API runtime classpath | CVSS 7.0 or higher blocks the pipeline |
 | Secret scan | Gitleaks | Full Git history scan, CI summary, and pull-request comments for detected leaks | Any likely secret blocks the pipeline |
 | Static analysis | Checkstyle | HTML and SARIF reports for main and test sources | Any configured rule violation blocks the pipeline |
 
@@ -17,6 +17,14 @@ repository secret reduces NVD API throttling; it is passed only as a GitHub
 Actions secret and is never stored in the workflow or source code. The first
 scan can be slower while vulnerability data is downloaded; later runs reuse
 the dedicated Dependency-Check cache.
+
+The scan is intentionally limited to Gradle's `runtimeClasspath`, which maps
+to dependencies packaged with the API. `skipTestGroups` is disabled because
+Spring Boot makes that configuration inherit development/test metadata; the
+explicit runtime whitelist still excludes test-only and Gradle-plugin
+dependencies. Build-tool dependencies are not part of the deployable artifact
+and are updated through their own release cycles rather than treated as
+application runtime findings.
 
 Gitleaks scans the complete Git history because a secret committed and later
 removed must still be treated as exposed. For repositories owned by a GitHub

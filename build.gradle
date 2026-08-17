@@ -60,6 +60,8 @@ dependencyCheck {
 	failBuildOnCVSS = 7.0
 	formats = ['HTML', 'JSON', 'SARIF']
 	suppressionFile = 'config/dependency-check/suppressions.xml'
+	scanConfigurations = ['runtimeClasspath']
+	skipTestGroups = false
 	data.directory = file('.dependency-check-data').absolutePath
 	nvd.apiKey = System.getenv('NVD_API_KEY')
 }

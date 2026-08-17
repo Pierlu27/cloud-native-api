@@ -60,6 +60,26 @@ Health endpoint:
 GET /actuator/health
 ```
 
+## Continuous Integration (GitHub Actions)
+
+The workflow in `.github/workflows/ci.yml` runs for every push and pull request
+targeting `main`. It checks out the repository, sets up Java 25 and Gradle, restores
+the Gradle cache, and runs:
+
+```bash
+./gradlew clean build --no-daemon
+```
+
+This command compiles the application, runs unit tests and integration tests, and
+assembles the artifact. Integration tests use Testcontainers to start an ephemeral
+PostgreSQL 16 database with CI-only credentials; GitHub-hosted Ubuntu runners provide
+the Docker daemon required by Testcontainers. A compilation or test failure makes the
+workflow fail, so its GitHub status can be used as the pull-request quality gate.
+
+To reproduce the same verification locally, install Java 25 and Docker, make sure the
+Docker daemon is running, then execute the command above. Jenkins is introduced in a
+later phase as a separate, alternative CI/CD implementation.
+
 ## Phase 1 API
 
 Base path: `/api/jobs`
@@ -124,6 +144,7 @@ only when intentionally discarding local data.
 - Architecture decisions: `docs/decisions.md`
 - Local toolchain setup (Terraform + gcloud): `docs/local-toolchain-setup.md`
 - Phase 1 verification evidence: `docs/phase-1-verification.md`
+- Phase 3 verification evidence: `docs/phase-3-verification.md`
 
 ## Initial milestones already set
 

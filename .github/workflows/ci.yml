@@ -1,27 +1,41 @@
+# Workflow: validates every change sent to the main branch.
 name: CI
 
+# Workflow triggers: run for direct pushes and pull requests targeting main.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+# Jobs: the CI quality gate is implemented by the build-and-test job below.
 jobs:
   build-and-test:
+    # Job: compile the application and run every test suite.
+    name: Build and test
+    # Runner: GitHub-hosted Ubuntu includes the Docker daemon used by Testcontainers.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    # Steps: checkout, configure the toolchain/cache, then build and test.
     steps:
+      # Step 1: retrieve the source code before any build operation.
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Step 2: install the Java version required by the Gradle build.
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "25"
-          cache: gradle
 
+      # Step 3: this action restores and saves the Gradle dependency/build cache.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build and test
+      # Step 4: Testcontainers starts an ephemeral PostgreSQL 16 database for
+      # integration tests; Docker is available on GitHub-hosted Ubuntu runners.
+      - name: Build, unit tests, and integration tests
         run: ./gradlew clean build --no-daemon

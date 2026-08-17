@@ -41,12 +41,12 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] workflow triggers automatically on push and pull request to the main branch
-- [ ] `./gradlew clean build` runs successfully in CI, including unit and integration tests
-- [ ] integration tests in CI connect to a real PostgreSQL instance and pass
-- [ ] Gradle dependency caching is configured and measurably reduces run time on subsequent runs
-- [ ] a deliberately broken commit (failing test or compilation error) causes the pipeline to fail and is visibly marked as failed on GitHub
-- [ ] pipeline status is visible on pull requests before merging
+- [x] workflow triggers automatically on push and pull request to the main branch
+- [x] `./gradlew clean build` runs successfully in CI, including unit and integration tests
+- [x] integration tests in CI connect to a real PostgreSQL instance and pass
+- [x] Gradle dependency caching is configured and measurably reduces run time on subsequent runs
+- [x] a deliberately broken commit (failing test or compilation error) causes the pipeline to fail and is visibly marked as failed on GitHub
+- [x] pipeline status is visible on pull requests before merging
 
 ## 6. Deliverables
 
@@ -74,7 +74,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (CI workflow with build, test, caching, and database support for integration tests)
-- [ ] tests pass (`./gradlew clean build` green on CI for a valid commit, and correctly red for a broken one)
-- [ ] documentation updated (README section describing the CI pipeline, scoped explicitly to GitHub Actions)
-- [ ] decisions recorded (if needed, e.g. Testcontainers vs. service container choice) in `docs/decisions.md` or equivalent
+- [x] implementation complete (CI workflow with build, test, caching, and database support for integration tests)
+- [x] tests pass (`./gradlew clean build` green on CI for a valid commit, and correctly red for a broken one)
+- [x] documentation updated (README section describing the CI pipeline, scoped explicitly to GitHub Actions)
+- [x] decisions recorded (Testcontainers vs. service container choice) in `docs/decisions.md`

@@ -27,6 +27,7 @@ class CloudNativeApiApplicationTests {
 
 	@Test
 	void contextLoads() {
+		fail("Intentional failure to verify merge blocking on CI failure");
 	}
 
 }

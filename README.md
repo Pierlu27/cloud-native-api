@@ -80,6 +80,51 @@ To reproduce the same verification locally, install Java 25 and Docker, make sur
 Docker daemon is running, then execute the command above. Jenkins is introduced in a
 later phase as a separate, alternative CI/CD implementation.
 
+### Working with the CI quality gate
+
+Use a pull request for every change. GitHub Actions runs the `Build and test`
+quality gate before the pull request is merged.
+
+```text
+Build and test
+      ↓
+   ✅ PASS
+      ↓
+PR ready to merge
+```
+
+```bash
+# Start from an up-to-date main branch
+git switch main
+git pull
+
+# Create a feature branch
+git switch -c feature/add-login
+
+# Commit the change
+git add .
+git commit -m "feat: add login"
+
+# Publish the branch
+git push -u origin feature/add-login
+
+# Create and inspect the pull request
+gh pr create --base main
+gh pr list
+gh pr checks <number> --watch
+
+# Merge only after the CI check passes
+gh pr merge <number>
+
+# Update the local main branch
+git switch main
+git pull
+```
+
+Replace `<number>` with the pull-request number shown by `gh pr create` or
+`gh pr list`. Merging the pull request pushes its changes to `main`, which
+triggers the workflow again through the `push` event.
+
 ## Phase 1 API
 
 Base path: `/api/jobs`

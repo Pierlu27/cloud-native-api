@@ -29,3 +29,14 @@ PostgreSQL volume for local development.
 **Reason**: the runtime image contains only the application, JRE and health-check tool;
 the non-root user reduces container privileges; the named volume preserves local data
 across compose restarts while keeping the setup disposable with `docker compose down -v`.
+
+## ADR-006 CI integration-test database
+
+**Decision**: use Testcontainers with PostgreSQL 16 for integration tests in GitHub
+Actions.
+
+**Reason**: the tests already declare their database lifecycle and connection settings,
+which keeps local and CI behavior aligned. GitHub-hosted Ubuntu runners provide Docker,
+so no persistent database or reusable credentials are required. A GitHub Actions
+PostgreSQL service container remains the fallback if Testcontainers proves unreliable or
+unacceptably slow.

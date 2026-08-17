@@ -131,7 +131,9 @@ docker compose up --build
 
 The API is available at `http://localhost:8080`, with Swagger UI at
 `http://localhost:8080/swagger-ui/index.html`. Use `docker compose ps` to check the
-health status. PostgreSQL data is retained in the named `postgres-data` volume across
+health status.
+
+PostgreSQL data is retained in the named `postgres-data` volume across
 `docker compose down` and subsequent `docker compose up` runs; use `docker compose down -v`
 only when intentionally discarding local data.
 

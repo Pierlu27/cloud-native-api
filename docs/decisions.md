@@ -40,3 +40,13 @@ which keeps local and CI behavior aligned. GitHub-hosted Ubuntu runners provide 
 so no persistent database or reusable credentials are required. A GitHub Actions
 PostgreSQL service container remains the fallback if Testcontainers proves unreliable or
 unacceptably slow.
+
+## ADR-007 Phase 4 quality and security gates
+
+**Decision**: use OWASP Dependency-Check with a CVSS 7.0 blocking threshold,
+Gitleaks for full-history secret scanning, and Checkstyle for static analysis.
+
+**Reason**: the tools work with the Java/Gradle application and provide CI-visible
+reports. A CVSS 7.0 threshold blocks high and critical dependency vulnerabilities
+without making every lower-severity advisory a release blocker. Each tool supports
+narrow, reviewed false-positive exceptions rather than disabling the entire check.

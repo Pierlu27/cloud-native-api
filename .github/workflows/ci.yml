@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [main]
 
-# Jobs: the CI quality gate is implemented by the build-and-test job below.
+# Jobs: build/test, dependency, secret, and static-analysis gates run independently.
 jobs:
   build-and-test:
     # Job: compile the application and run every test suite.
@@ -39,3 +39,95 @@ jobs:
       # integration tests; Docker is available on GitHub-hosted Ubuntu runners.
       - name: Build, unit tests, and integration tests
         run: ./gradlew clean build --no-daemon
+
+  # Dependency scan: blocks high and critical known vulnerabilities (CVSS >= 7).
+  dependency-scan:
+    name: Dependency scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Restore Dependency-Check vulnerability data
+        uses: actions/cache@v4
+        with:
+          path: .dependency-check-data
+          key: ${{ runner.os }}-dependency-check-v12-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-v12-
+
+      - name: Scan dependencies for known vulnerabilities
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./gradlew dependencyCheckAnalyze --no-daemon
+
+      - name: Upload dependency scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-reports
+          path: build/reports
+          if-no-files-found: warn
+
+  # Secret scan: fetches repository history so that earlier accidental leaks are detected.
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  # Static analysis: Checkstyle reports quality violations for production and test code.
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run Checkstyle
+        run: ./gradlew checkstyleMain checkstyleTest --no-daemon
+
+      - name: Upload static-analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: build/reports/checkstyle
+          if-no-files-found: warn

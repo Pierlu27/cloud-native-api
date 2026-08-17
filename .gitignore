@@ -1,5 +1,6 @@
 # Gradle / Java
 .gradle/
+.dependency-check-data/
 build/
 target/
 *.class

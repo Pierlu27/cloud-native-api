@@ -9,6 +9,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `deployment.md` - deployment notes
 - `local-toolchain-setup.md` - local setup for Terraform and gcloud
 - `security.md` - security notes and constraints
+- `phase-4-verification.md` - Phase 4 security and quality-gate evidence
 
 ## Local setup checklist
 

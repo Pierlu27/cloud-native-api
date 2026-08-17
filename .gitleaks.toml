@@ -1,0 +1,13 @@
+title = "Cloud Native API Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# Add only narrowly scoped, reviewed false-positive exceptions below. Each entry
+# must name the finding, link to its review, and have an expiry date in the issue
+# or pull request that approved it. Never allowlist an entire rule or directory.
+#
+# [[allowlists]]
+# description = "False positive: <reason>; review: <issue-or-PR>; expires: <YYYY-MM-DD>"
+# regexTarget = "match"
+# regexes = [ '''<exact-reviewed-value>''' ]

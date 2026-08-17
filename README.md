@@ -82,13 +82,14 @@ later phase as a separate, alternative CI/CD implementation.
 
 ### Working with the CI quality gate
 
-Use a pull request for every change. GitHub Actions runs the `Build and test`
-quality gate before the pull request is merged.
+Use a pull request for every change. GitHub Actions runs the build/test and
+Phase 4 quality/security gates before the pull request is merged.
 
 ```text
-Build and test
-      ↓
-   ✅ PASS
+Build and test ─┐
+Dependency scan ├─ ✅ PASS
+Secret scan ────┤
+Static analysis ┘
       ↓
 PR ready to merge
 ```

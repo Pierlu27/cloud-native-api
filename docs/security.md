@@ -1,19 +1,63 @@
-# Security Notes
+# Security Controls
 
-## Principles
+## CI quality and security gates
 
-- IAM least privilege
-- no secrets in the repository
-- automated CI scans
+Every push and pull request targeting `main` runs the following GitHub Actions
+jobs. A pull request is ready to merge only when all required jobs pass.
 
-## Planned controls
+| Job | Tool | Result | Blocking policy |
+| --- | --- | --- | --- |
+| Build and test | Gradle + Testcontainers | Compilation, unit tests, and PostgreSQL-backed integration tests | Any failure blocks the pipeline |
+| Dependency scan | OWASP Dependency-Check | HTML, JSON, and SARIF dependency vulnerability reports | CVSS 7.0 or higher blocks the pipeline |
+| Secret scan | Gitleaks | Full Git history scan, CI summary, and pull-request comments for detected leaks | Any likely secret blocks the pipeline |
+| Static analysis | Checkstyle | HTML and SARIF reports for main and test sources | Any configured rule violation blocks the pipeline |
 
-- dependency scanning
-- secret scanning
-- container image scanning
+Dependency-Check uses the NVD vulnerability feed. The optional `NVD_API_KEY`
+repository secret reduces NVD API throttling; it is passed only as a GitHub
+Actions secret and is never stored in the workflow or source code. The first
+scan can be slower while vulnerability data is downloaded; later runs reuse
+the dedicated Dependency-Check cache.
+
+Gitleaks scans the complete Git history because a secret committed and later
+removed must still be treated as exposed. For repositories owned by a GitHub
+organization, configure the `GITLEAKS_LICENSE` secret if required by the
+Gitleaks GitHub Action; personal repositories do not require it.
+
+## False-positive exception process
+
+Never suppress a finding until the value has been reviewed and confirmed not
+to be a real secret or exploitable vulnerability. Record the reason, reviewer,
+scope, and expiry date in the pull request that introduces the exception.
+
+### Dependency-Check
+
+1. Open the generated HTML report and use its suppression helper to create a
+   rule for the exact dependency/CVE or CPE.
+2. Add the generated rule to `config/dependency-check/suppressions.xml` with
+   a `<notes>` explanation and an `until` date.
+3. Link the review in the pull request and remove the rule when it expires.
+
+Do not suppress findings by broad CVSS threshold, artifact wildcard, or an
+unrelated dependency name.
+
+### Gitleaks
+
+1. Treat every detected value as real until confirmed otherwise; revoke and
+   rotate real credentials instead of suppressing them.
+2. For a confirmed false positive, add one exact, documented `[[allowlists]]`
+   entry to `.gitleaks.toml`, scoped to the reviewed value or path.
+3. Include the review link and expiry date in the allowlist description. Never
+   allowlist an entire rule, repository, or arbitrary directory.
+
+### Checkstyle
+
+1. Fix the source code when practical.
+2. If a rule is genuinely inapplicable, add a minimal file-and-rule suppression
+   to `config/checkstyle/suppressions.xml` with the reason in the pull request.
+3. Revisit suppressions when the affected code changes.
 
 ## Evidence
 
-- scan reports attached to workflows
-- list of assigned IAM roles
-- decisions documented in `docs/decisions.md`
+- GitHub Actions run links and screenshots: `docs/phase-4-verification.md`
+- Architecture decisions: `docs/decisions.md`
+- Phase 3 CI baseline evidence: `docs/phase-3-verification.md`

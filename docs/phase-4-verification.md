@@ -54,10 +54,12 @@ The generated runtime reports are available locally at:
 ## Build dependency inventory
 
 Build and CI dependencies are monitored separately from the deployable runtime.
-The `Build dependency inventory` CI check runs `./gradlew buildEnvironment` and
-publishes the resolved Gradle plugin classpath as the
-`build-dependency-inventory` artifact. It is initially informational: it has no
-CVSS threshold and does not alter the runtime `dependency-scan` gate.
+The `Build dependency scan` CI check runs `./gradlew buildEnvironment` and
+`./gradlew dependencyCheckBuildEnvironment`, publishing the resolved plugin
+classpath and CVE reports as the `build-dependency-reports` artifact. It is
+initially informational: its CVSS threshold is `11.0`, so known vulnerabilities
+are reported but do not block the job. It does not alter the runtime
+`dependency-scan` gate.
 
 On 2026-08-19, the Gradle Wrapper was updated from `9.5.1` to `9.7.0` and
 verified with `./gradlew clean build --no-daemon`. Dependabot is enabled for

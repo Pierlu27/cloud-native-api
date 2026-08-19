@@ -81,10 +81,10 @@ jobs:
           path: build/reports
           if-no-files-found: warn
 
-  # Build dependency inventory: records the Gradle plugin classpath separately
+  # Build dependency scan: reports CVEs in the Gradle plugin classpath separately
   # from the deployable runtime. This is initially informational, not a CVSS gate.
-  build-dependency-inventory:
-    name: Build dependency inventory
+  build-dependency-scan:
+    name: Build dependency scan
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -102,17 +102,30 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Restore Dependency-Check vulnerability data
+        uses: actions/cache@v5
+        with:
+          path: .dependency-check-data
+          key: ${{ runner.os }}-dependency-check-v12-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-v12-
+
       - name: Inventory Gradle plugin classpath
         run: |
           set -o pipefail
           mkdir -p build/reports/build-dependencies
           ./gradlew buildEnvironment --no-daemon --console=plain | tee build/reports/build-dependencies/gradle-build-environment.txt
 
-      - name: Upload build dependency inventory
+      - name: Scan Gradle plugin classpath for known vulnerabilities
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./gradlew dependencyCheckBuildEnvironment --no-daemon
+
+      - name: Upload build dependency reports
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: build-dependency-inventory
+          name: build-dependency-reports
           path: build/reports/build-dependencies
           if-no-files-found: warn
 

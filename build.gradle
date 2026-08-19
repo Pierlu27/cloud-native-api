@@ -67,3 +67,20 @@ dependencyCheck {
 	data.directory = file('.dependency-check-data').absolutePath
 	nvd.apiKey = System.getenv('NVD_API_KEY')
 }
+
+tasks.register('dependencyCheckBuildEnvironment', org.owasp.dependencycheck.gradle.tasks.Analyze) {
+	group = 'verification'
+	description = 'Generates an informational CVE report for the Gradle build environment.'
+
+	dependencyCheck {
+		failBuildOnCVSS = 11.0
+		formats = ['HTML', 'JSON', 'SARIF']
+		outputDirectory = file('build/reports/build-dependencies/dependency-check')
+		scanBuildEnv = true
+		scanDependencies = false
+		scanSet = []
+		skipTestGroups = false
+		data.directory = file('.dependency-check-data').absolutePath
+		nvd.apiKey = System.getenv('NVD_API_KEY')
+	}
+}

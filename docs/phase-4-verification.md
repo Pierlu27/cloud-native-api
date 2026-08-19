@@ -51,6 +51,19 @@ The generated runtime reports are available locally at:
 - `build/reports/dependency-check-report.json`
 - `build/reports/dependency-check-report.sarif`
 
+## Build dependency inventory
+
+Build and CI dependencies are monitored separately from the deployable runtime.
+The `Build dependency inventory` CI check runs `./gradlew buildEnvironment` and
+publishes the resolved Gradle plugin classpath as the
+`build-dependency-inventory` artifact. It is initially informational: it has no
+CVSS threshold and does not alter the runtime `dependency-scan` gate.
+
+Use this inventory as the baseline for updating build tooling one component at a
+time: Spring Boot Gradle plugin, OWASP Dependency-Check, Dependency Management,
+the Gradle Wrapper, and GitHub Actions. Any temporary exception introduced in a
+future blocking gate must name the CVE, owner, justification, and expiry date.
+
 ## GitHub Actions evidence to record
 
 - a successful pull-request run showing `Dependency scan`, `Secret scan`, and

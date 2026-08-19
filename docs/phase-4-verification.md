@@ -59,6 +59,11 @@ publishes the resolved Gradle plugin classpath as the
 `build-dependency-inventory` artifact. It is initially informational: it has no
 CVSS threshold and does not alter the runtime `dependency-scan` gate.
 
+On 2026-08-19, the Gradle Wrapper was updated from `9.5.1` to `9.7.0` and
+verified with `./gradlew clean build --no-daemon`. Dependabot is enabled for
+both `gradle` and `github-actions` updates, so new build-tooling releases are
+proposed in dedicated pull requests.
+
 Use this inventory as the baseline for updating build tooling one component at a
 time: Spring Boot Gradle plugin, OWASP Dependency-Check, Dependency Management,
 the Gradle Wrapper, and GitHub Actions. Any temporary exception introduced in a

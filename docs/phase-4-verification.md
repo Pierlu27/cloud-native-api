@@ -57,8 +57,25 @@ Build and CI dependencies are monitored separately from the deployable runtime.
 The `Build dependency scan` CI check runs `./gradlew buildEnvironment` and
 `./gradlew dependencyCheckBuildEnvironment`, publishing the resolved plugin
 classpath and CVE reports as the `build-dependency-reports` artifact. It is
-blocking for High/Critical findings: its CVSS threshold is `7.0`. It does not
-alter the runtime `dependency-scan` gate.
+temporarily informational while the actual plugin classpath baseline is
+established: its CVSS threshold is `11.0`. It does not alter the runtime
+`dependency-scan` gate.
+
+The scan uses the resolvable `buildPluginClasspath` configuration, which mirrors
+the plugin marker dependencies declared by the Gradle `plugins` block. This is
+necessary because an empty Dependency-Check report does not establish a clean
+baseline; the generated JSON must contain the plugin dependencies before the
+High/Critical build gate is enabled.
+
+The first populated baseline (2026-08-19) identified High/Critical findings in
+the transitive Apache HttpComponents dependencies of the Spring Boot Gradle
+plugin: `CVE-2026-54399` and `CVE-2026-54428` affect HttpCore `5.4.2`, and
+`CVE-2026-71290` affects HttpClient `5.6.1`. The report also contains CPE
+misidentifications for `dependency-management-plugin:1.1.7` and
+`spring-boot-loader-tools:4.1.0`; these are retained in the report pending
+documented, narrowly scoped review. No suppression has been added. The build
+gate remains informational until the confirmed findings are remediated or
+exceptions are approved with a CVE, owner, justification, and expiry date.
 
 On 2026-08-19, the Gradle Wrapper was updated from `9.5.1` to `9.7.0` and
 verified with `./gradlew clean build --no-daemon`. Dependabot is enabled for

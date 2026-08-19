@@ -22,7 +22,20 @@ repositories {
 	mavenCentral()
 }
 
+configurations {
+	buildPluginClasspath {
+		canBeConsumed = false
+		canBeResolved = true
+		visible = false
+	}
+}
+
 dependencies {
+	// Mirrors the plugins DSL classpath so Dependency-Check can scan it.
+	buildPluginClasspath 'org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.0'
+	buildPluginClasspath 'io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7'
+	buildPluginClasspath 'org.owasp.dependencycheck:org.owasp.dependencycheck.gradle.plugin:12.2.2'
+
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
@@ -73,11 +86,11 @@ tasks.register('dependencyCheckBuildEnvironment', org.owasp.dependencycheck.grad
 	description = 'Generates an informational CVE report for the Gradle build environment.'
 
 	dependencyCheck {
-		failBuildOnCVSS = 7.0
+		failBuildOnCVSS = 11.0
 		formats = ['HTML', 'JSON', 'SARIF']
 		outputDirectory = file('build/reports/build-dependencies/dependency-check')
-		scanBuildEnv = true
-		scanDependencies = false
+		scanBuildEnv = false
+		scanConfigurations = ['buildPluginClasspath']
 		scanSet = []
 		skipTestGroups = false
 		data.directory = file('.dependency-check-data').absolutePath

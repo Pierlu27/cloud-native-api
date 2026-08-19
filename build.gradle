@@ -73,7 +73,7 @@ tasks.register('dependencyCheckBuildEnvironment', org.owasp.dependencycheck.grad
 	description = 'Generates an informational CVE report for the Gradle build environment.'
 
 	dependencyCheck {
-		failBuildOnCVSS = 11.0
+		failBuildOnCVSS = 7.0
 		formats = ['HTML', 'JSON', 'SARIF']
 		outputDirectory = file('build/reports/build-dependencies/dependency-check')
 		scanBuildEnv = true

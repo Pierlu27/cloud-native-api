@@ -81,8 +81,8 @@ jobs:
           path: build/reports
           if-no-files-found: warn
 
-  # Build dependency scan: reports CVEs in the Gradle plugin classpath separately
-  # from the deployable runtime. This is initially informational, not a CVSS gate.
+  # Build dependency scan: blocks high and critical CVEs in the Gradle plugin
+  # classpath separately from the deployable runtime.
   build-dependency-scan:
     name: Build dependency scan
     runs-on: ubuntu-latest

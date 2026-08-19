@@ -57,9 +57,8 @@ Build and CI dependencies are monitored separately from the deployable runtime.
 The `Build dependency scan` CI check runs `./gradlew buildEnvironment` and
 `./gradlew dependencyCheckBuildEnvironment`, publishing the resolved plugin
 classpath and CVE reports as the `build-dependency-reports` artifact. It is
-initially informational: its CVSS threshold is `11.0`, so known vulnerabilities
-are reported but do not block the job. It does not alter the runtime
-`dependency-scan` gate.
+blocking for High/Critical findings: its CVSS threshold is `7.0`. It does not
+alter the runtime `dependency-scan` gate.
 
 On 2026-08-19, the Gradle Wrapper was updated from `9.5.1` to `9.7.0` and
 verified with `./gradlew clean build --no-daemon`. Dependabot is enabled for
@@ -69,7 +68,7 @@ proposed in dedicated pull requests.
 Use this inventory as the baseline for updating build tooling one component at a
 time: Spring Boot Gradle plugin, OWASP Dependency-Check, Dependency Management,
 the Gradle Wrapper, and GitHub Actions. Any temporary exception introduced in a
-future blocking gate must name the CVE, owner, justification, and expiry date.
+blocking gate must name the CVE, owner, justification, and expiry date.
 
 ## GitHub Actions evidence to record
 

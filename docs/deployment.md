@@ -37,6 +37,16 @@ docker pull europe-west8-docker.pkg.dev/project-c42baf60-7736-408b-9ff/cloud-nat
 docker run --rm -p 8080:8080 europe-west8-docker.pkg.dev/project-c42baf60-7736-408b-9ff/cloud-native-api/cloud-native-api:<commit-sha>
 ```
 
+### Phase 5 verification (2026-08-20)
+
+The `main` image was published with commit tag
+`a036cb9425a4d4fff1191cfdb37a523164c79706` and manifest digest
+`sha256:75059f78ee5e29f92b3821fc76ccb9fec2f18cb4bd8e84971f2902a7521567b7`.
+The exact SHA-tagged image was pulled successfully from Artifact Registry.
+It starts the Spring Boot/Tomcat process locally; a complete application health
+check requires the configured PostgreSQL datasource variables (the standalone
+container exits when `SPRING_DATASOURCE_URL` is not provided).
+
 ## Target flow
 
 1. Infrastructure provisioning with Terraform

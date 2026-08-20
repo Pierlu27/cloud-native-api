@@ -179,3 +179,58 @@ jobs:
           name: static-analysis-reports
           path: build/reports/checkstyle
           if-no-files-found: warn
+
+  # Image publishing: only main pushes can publish to Artifact Registry, and
+  # only after every build, test, security, and quality gate has passed.
+  image-publish:
+    name: Build and publish image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - build-and-test
+      - dependency-scan
+      - build-dependency-scan
+      - secret-scan
+      - static-analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: project-c42baf60-7736-408b-9ff
+      REGION: europe-west8
+      REPOSITORY: cloud-native-api
+      IMAGE_NAME: cloud-native-api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build image
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}
+        run: docker build --tag "${IMAGE}:${GITHUB_SHA}" --tag "${IMAGE}:latest" .
+
+      - name: Push image tags
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+
+      - name: Report pushed image digest
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}
+        run: docker buildx imagetools inspect "${IMAGE}:${GITHUB_SHA}"

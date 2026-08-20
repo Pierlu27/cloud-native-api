@@ -8,6 +8,35 @@
 - Terraform
 - GitHub repository with configured secrets
 
+## Artifact Registry publishing
+
+The project publishes images to the Docker repository
+`europe-west8-docker.pkg.dev/project-c42baf60-7736-408b-9ff/cloud-native-api`.
+The `image-publish` GitHub Actions job runs only for pushes to `main` and only
+after the build, test, dependency, secret, and static-analysis jobs succeed.
+
+Authentication uses Workload Identity Federation, not a long-lived JSON key.
+The repository requires these GitHub Actions secrets:
+
+- `WIF_PROVIDER`
+- `WIF_SERVICE_ACCOUNT`
+
+The service account has only `roles/artifactregistry.writer` on the
+`cloud-native-api` repository.
+
+Each published image receives the immutable commit tag `${GITHUB_SHA}` and the
+`latest` convenience alias. The SHA tag is the traceability source of truth;
+`latest` is never the only identifier. The workflow prints the pushed manifest
+digest so it can be matched to the commit.
+
+Pull an image locally with:
+
+```bash
+gcloud auth configure-docker europe-west8-docker.pkg.dev
+docker pull europe-west8-docker.pkg.dev/project-c42baf60-7736-408b-9ff/cloud-native-api/cloud-native-api:<commit-sha>
+docker run --rm -p 8080:8080 europe-west8-docker.pkg.dev/project-c42baf60-7736-408b-9ff/cloud-native-api/cloud-native-api:<commit-sha>
+```
+
 ## Target flow
 
 1. Infrastructure provisioning with Terraform

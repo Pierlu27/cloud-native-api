@@ -41,13 +41,13 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] Supabase project created with a PostgreSQL database provisioned on the Free tier
-- [ ] Cloud Run service successfully connects to Supabase Postgres via the Supavisor pooled connection string
-- [ ] application schema is created successfully on first connection to the managed Supabase database
-- [ ] all five Job API endpoints verified working against Supabase (not the local database)
-- [ ] connection pool configured with an explicit maximum size, verified to stay within Supabase's default connection limits for the project's compute size
-- [ ] connection confirmed to use TLS (no plain-text fallback)
-- [ ] Free tier limitations (500 MB storage, 5 GB egress, auto-pause after 1 week of inactivity) documented and understood as an accepted constraint for this phase
+- [x] Supabase project created with a PostgreSQL database provisioned on the Free tier
+- [x] Cloud Run service successfully connects to Supabase Postgres via the Supavisor Session Pooler connection string
+- [x] application schema is created successfully on first connection to the managed Supabase database
+- [x] all five Job API endpoints verified working against Supabase (not the local database)
+- [x] connection pool configured with an explicit maximum size, verified to stay within Supabase's default connection limits for the project's compute size
+- [x] connection confirmed to use TLS (no plain-text fallback)
+- [x] Free tier limitations (500 MB storage, 5 GB egress, auto-pause after 1 week of inactivity) documented and understood as an accepted constraint for this phase
 
 ## 6. Deliverables
 
@@ -57,11 +57,17 @@ Out of scope:
 
 ## 7. Evidence
 
-- Supabase dashboard screenshot showing the provisioned project, database size, and connection pooling settings
-- screenshot or log confirming a successful Cloud Run request that reads/writes data through Supabase Postgres
-- sample API requests (create, read, update, delete a Job) executed against the Cloud Run + Supabase setup
-- connection string format used, confirming the Supavisor pooler host/port is used (not the direct database host)
-- note or screenshot confirming TLS is used for the database connection
+- Supabase Free project and Session Pooler connection were provisioned and
+  verified from the application; credentials remain runtime-only.
+- Cloud Run service URL: `https://cloud-native-api-630606381542.europe-west8.run.app`.
+- Active revision: `cloud-native-api-00004-2p6`; `/actuator/health` returned `UP`.
+- Public Swagger CRUD requests (create, read, update, delete) succeeded against
+  Supabase PostgreSQL.
+- JDBC URL uses the Supavisor pooler with `sslmode=require`; no direct database
+  connection or public database endpoint is used by the application.
+- The Free tier constraints and the Supabase-over-Cloud-SQL decision are recorded
+  in `docs/deployment.md` and `docs/decisions.md`.
+
 
 ## 8. Risks and mitigations
 
@@ -76,7 +82,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (Supabase project provisioned, Cloud Run connected via Supavisor pooler, application configuration updated)
-- [ ] tests pass (existing Job API endpoints verified functionally correct against the Supabase-backed deployment)
-- [ ] documentation updated (`docs/deployment.md` describing the Supabase connection setup, pooling configuration, and the cost rationale for choosing it over Cloud SQL)
-- [ ] decisions recorded (e.g. Supabase vs. Cloud SQL choice, pooling mode, Free tier trade-offs accepted) in `docs/decisions.md` or equivalent
+- [x] implementation complete (Supabase project provisioned, Cloud Run connected via Supavisor pooler, application configuration updated)
+- [x] tests pass (existing Job API endpoints verified functionally correct against the Supabase-backed deployment)
+- [x] documentation updated (`docs/deployment.md` describing the Supabase connection setup, pooling configuration, and the cost rationale for choosing it over Cloud SQL)
+- [x] decisions recorded (Supabase vs. Cloud SQL choice, pooling mode, Free tier trade-offs accepted) in `docs/decisions.md`

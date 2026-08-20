@@ -64,6 +64,19 @@ It starts the Spring Boot/Tomcat process locally; a complete application health
 check requires the configured PostgreSQL datasource variables (the standalone
 container exits when `SPRING_DATASOURCE_URL` is not provided).
 
+### Cloud Run verification (2026-08-20)
+
+The service is publicly available at:
+
+`https://cloud-native-api-630606381542.europe-west8.run.app`
+
+The active revision is `cloud-native-api-00004-2p6`, deployed from the
+immutable image tag `d893465c3bb43001fe8d9c420263a4e7b89a4292`.
+`/actuator/health` returned `UP`, and `/v3/api-docs` generated the public
+HTTPS server URL. The Job API CRUD flow (create, read, update, delete) was
+verified through the public Swagger UI against Supabase PostgreSQL. The service
+uses zero minimum and one maximum instance with a concurrency limit of 20.
+
 ## Target flow
 
 1. Infrastructure provisioning with Terraform

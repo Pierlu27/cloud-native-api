@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload dependency scan reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-scan-reports
           path: build/reports
@@ -123,7 +123,7 @@ jobs:
 
       - name: Upload build dependency reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: build-dependency-reports
           path: build/reports/build-dependencies
@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload static-analysis reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: static-analysis-reports
           path: build/reports/checkstyle

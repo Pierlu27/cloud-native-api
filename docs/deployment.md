@@ -24,6 +24,23 @@ The repository requires these GitHub Actions secrets:
 The service account has only `roles/artifactregistry.writer` on the
 `cloud-native-api` repository.
 
+## Free PostgreSQL database
+
+Cloud SQL is intentionally not used because stopping a Cloud SQL instance
+suspends compute charges but does not remove storage and IP charges. The
+zero-cost deployment uses a Supabase Free PostgreSQL project instead.
+
+The application connects through the Supabase Session Pooler using JDBC and
+SSL. Database credentials are supplied only at runtime through:
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+
+Credentials must never be committed. The application uses a conservative
+Hikari configuration (`maximum-pool-size: 5`, `minimum-idle: 0`) to stay within
+the connection limits of a free PostgreSQL project.
+
 Each published image receives the immutable commit tag `${GITHUB_SHA}` and the
 `latest` convenience alias. The SHA tag is the traceability source of truth;
 `latest` is never the only identifier. The workflow prints the pushed manifest

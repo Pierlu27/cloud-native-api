@@ -5,10 +5,13 @@
 **Decision**: use Cloud Run as the initial compute layer.  
 **Reason**: simpler operations, autoscaling, learning focus on CI/CD.
 
-## ADR-002 Cloud SQL
+## ADR-002 Managed PostgreSQL provider
 
-**Decision**: use Cloud SQL PostgreSQL.  
-**Reason**: separate compute and data layers, practice with a managed DB.
+**Decision**: use Supabase Free PostgreSQL with the Supavisor Session Pooler.
+**Reason**: keep the managed database at zero cost while separating the data
+layer from Cloud Run. Cloud SQL is explicitly deferred because stopped
+instances can still incur storage and IP charges. TLS is required and
+credentials remain runtime-only until Secret Manager is introduced in Phase 9.
 
 ## ADR-003 Terraform
 

@@ -11,9 +11,9 @@ Developer machine
 ## Cloud architecture (target)
 
 ```text
-GitHub Actions -> Artifact Registry -> Cloud Run -> Cloud SQL
+GitHub Actions -> Artifact Registry -> Cloud Run -> Supabase PostgreSQL
                          |                |
-                   Security scans     Secret Manager / IAM
+                   Security scans     Runtime environment / Secret Manager (Phase 9)
 ```
 
 ## CI/CD architecture

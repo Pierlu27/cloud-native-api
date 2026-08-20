@@ -16,6 +16,9 @@ spring:
       ddl-auto: update
     open-in-view: false
 
+server:
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:

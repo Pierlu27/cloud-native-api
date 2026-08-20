@@ -58,7 +58,7 @@ The `Build dependency scan` CI check runs `./gradlew buildEnvironment` and
 `./gradlew dependencyCheckBuildEnvironment`, publishing the resolved plugin
 classpath and CVE reports as the `build-dependency-reports` artifact. It is
 temporarily informational while the actual plugin classpath baseline is
-established: its CVSS threshold is `11.0`. It does not alter the runtime
+established: its CVSS threshold is `7.0`. It does not alter the runtime
 `dependency-scan` gate.
 
 The scan uses the resolvable `buildPluginClasspath` configuration, which mirrors
@@ -76,6 +76,18 @@ misidentifications for `dependency-management-plugin:1.1.7` and
 documented, narrowly scoped review. No suppression has been added. The build
 gate remains informational until the confirmed findings are remediated or
 exceptions are approved with a CVE, owner, justification, and expiry date.
+
+The approved build exceptions below are in
+`config/dependency-check/build-suppressions.xml`; all are owned by Pierluigi
+and expire on 2026-09-19. They are scoped to one CVE and one exact Maven package
+URL each.
+
+| CVEs | Artifact | Justification |
+| --- | --- | --- |
+| CVE-2016-9878, CVE-2018-11040, CVE-2018-1270, CVE-2022-22965, CVE-2024-22259 | `dependency-management-plugin:1.1.7` | Reviewed CPE false positives for Spring Framework. |
+| CVE-2022-31691 | `spring-boot-loader-tools:4.1.0` | Reviewed CPE false positive; the advisory concerns Spring Tools IDE extensions. |
+| CVE-2026-54399, CVE-2026-54428 | `httpcore5:5.4.2`, `httpcore5-h2:5.4.2` | Transitive from Spring Boot Gradle Plugin; no supported 4.1.x remediation is available. |
+| CVE-2026-71290 | `httpclient5:5.6.1` | Transitive from Spring Boot Gradle Plugin; no supported 4.1.x remediation is available. |
 
 On 2026-08-19, the Gradle Wrapper was updated from `9.5.1` to `9.7.0` and
 verified with `./gradlew clean build --no-daemon`. Dependabot is enabled for

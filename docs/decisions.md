@@ -54,3 +54,31 @@ Checkstyle for static analysis.
 reports. A CVSS 7.0 threshold blocks high and critical dependency vulnerabilities
 without making every lower-severity advisory a release blocker. Each tool supports
 narrow, reviewed false-positive exceptions rather than disabling the entire check.
+
+## ADR-008 Artifact Registry authentication and image tagging
+
+**Decision**: authenticate GitHub Actions to GCP through Workload Identity
+Federation using a dedicated service account with
+`roles/artifactregistry.writer` scoped to the project repository. Publish every
+image with the immutable Git commit SHA and also maintain `latest` as a
+convenience alias; the SHA tag remains the traceability source of truth.
+
+**Reason**: Workload Identity Federation avoids storing a long-lived GCP JSON
+key in GitHub, while repository-scoped writer access follows least privilege.
+The immutable SHA tag links a deployed image to its source commit and permits
+reliable rollback even when the `latest` alias moves.
+
+## ADR-009 Cloud Run health probes and autoscaling limits
+
+**Decision**: configure Cloud Run startup and readiness probes against
+`/actuator/health/readiness` and the liveness probe against
+`/actuator/health/liveness`. Keep zero minimum instances, limit both the service
+and each revision to one maximum instance, and allow 20 concurrent requests per
+container.
+
+**Reason**: HTTP Actuator probes validate application health more accurately
+than checking only whether port 8080 is open. Separate readiness and liveness
+signals avoid treating a temporary dependency-readiness problem as a dead JVM.
+Zero minimum instances preserves scale-to-zero, while a maximum of one prevents
+unexpected fan-out and keeps the demo workload within its intended cost and
+Supabase connection limits.

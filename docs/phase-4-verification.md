@@ -57,25 +57,25 @@ Build and CI dependencies are monitored separately from the deployable runtime.
 The `Build dependency scan` CI check runs `./gradlew buildEnvironment` and
 `./gradlew dependencyCheckBuildEnvironment`, publishing the resolved plugin
 classpath and CVE reports as the `build-dependency-reports` artifact. It is
-temporarily informational while the actual plugin classpath baseline is
-established: its CVSS threshold is `7.0`. It does not alter the runtime
-`dependency-scan` gate.
+now a blocking gate with a CVSS threshold of `7.0`, independently of the
+runtime `dependency-scan` gate.
 
 The scan uses the resolvable `buildPluginClasspath` configuration, which mirrors
 the plugin marker dependencies declared by the Gradle `plugins` block. This is
 necessary because an empty Dependency-Check report does not establish a clean
-baseline; the generated JSON must contain the plugin dependencies before the
-High/Critical build gate is enabled.
+baseline. The populated baseline was reviewed and the High/Critical build gate
+is now enabled; the approved, time-bounded exceptions below allow the current
+clean build to pass without making the job informational.
 
 The first populated baseline (2026-08-19) identified High/Critical findings in
 the transitive Apache HttpComponents dependencies of the Spring Boot Gradle
 plugin: `CVE-2026-54399` and `CVE-2026-54428` affect HttpCore `5.4.2`, and
 `CVE-2026-71290` affects HttpClient `5.6.1`. The report also contains CPE
 misidentifications for `dependency-management-plugin:1.1.7` and
-`spring-boot-loader-tools:4.1.0`; these are retained in the report pending
-documented, narrowly scoped review. No suppression has been added. The build
-gate remains informational until the confirmed findings are remediated or
-exceptions are approved with a CVE, owner, justification, and expiry date.
+`spring-boot-loader-tools:4.1.0`. The build gate remained informational while
+these findings were reviewed. It became blocking after the narrowly scoped
+exceptions below were approved with a CVE, owner, justification, and expiry
+date.
 
 The approved build exceptions below are in
 `config/dependency-check/build-suppressions.xml`; all are owned by Pierluigi

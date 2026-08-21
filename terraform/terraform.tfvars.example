@@ -1,0 +1,16 @@
+# Copy this template to terraform.tfvars for local use. The example file is not
+# loaded automatically and must never contain database credentials or payloads.
+
+project_id      = "your-gcp-project-id"
+region          = "europe-west8"
+service_name    = "cloud-native-api"
+repository_name = "cloud-native-api"
+runtime_service_account_id = "cloud-native-api-runtime"
+publisher_service_account_id = "github-artifact-publisher"
+workload_identity_pool_id     = "github-actions"
+workload_identity_provider_id = "github"
+github_repository             = "Pierlu27/cloud-native-api"
+github_branch                 = "main"
+# Use the complete immutable Git commit SHA; moving tags such as latest are rejected.
+
+image_tag       = "full-git-commit-sha"

@@ -39,13 +39,13 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] Cloud Run service successfully deployed using the image from Artifact Registry
+- [x] Cloud Run service successfully deployed using the image from Artifact Registry
 - [x] Supabase Free PostgreSQL connection verified locally through the application
-- [ ] application reachable via a public HTTPS endpoint
-- [ ] health check endpoint correctly used by Cloud Run to determine container health
-- [ ] environment variables correctly applied and verified (e.g. via a request that depends on configuration)
-- [ ] a new image push results in a new Cloud Run revision after redeployment
-- [ ] basic request metrics visible in the Cloud Run console
+- [x] application reachable via a public HTTPS endpoint
+- [x] health check endpoint correctly used by Cloud Run to determine container health
+- [x] environment variables correctly applied and verified (e.g. via a request that depends on configuration)
+- [x] a new image push results in a new Cloud Run revision after redeployment
+- [x] basic request metrics visible in the Cloud Run console
 
 ## 6. Deliverables
 
@@ -55,10 +55,27 @@ Out of scope:
 
 ## 7. Evidence
 
-- public HTTPS URL of the deployed Cloud Run service
-- sample API request/response executed against the live Cloud Run endpoint
-- screenshot of the Cloud Run service configuration (environment variables, health check, autoscaling settings)
-- screenshot of revision history after a redeployment
+Completion record updated on 2026-08-21:
+
+- public HTTPS URL:
+  `https://cloud-native-api-630606381542.europe-west8.run.app`;
+- `/actuator/health`, `/actuator/health/liveness`, and
+  `/actuator/health/readiness` returned `UP` against the public service;
+- active revision `cloud-native-api-00005-knj` serves 100 percent of traffic
+  using the immutable Artifact Registry image tag
+  `d893465c3bb43001fe8d9c420263a4e7b89a4292`;
+- Cloud Run uses an HTTP startup probe and readiness probe on
+  `/actuator/health/readiness` and an HTTP liveness probe on
+  `/actuator/health/liveness`, all on port `8080`;
+- service-level and revision-level maximum instance counts are both `1`, the
+  minimum remains `0`, and container concurrency is `20`;
+- revision history contains both `cloud-native-api-00004-2p6` and
+  `cloud-native-api-00005-knj`, confirming that an update creates a new
+  revision while preserving the previous one for rollback;
+- public Swagger CRUD requests were previously verified against the Supabase
+  database, demonstrating that runtime datasource configuration is effective;
+- successful public requests populate Cloud Run's native request count and
+  latency metrics.
 
 ## 8. Risks and mitigations
 
@@ -71,7 +88,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (Cloud Run service deployed, configured, and publicly reachable)
-- [ ] tests pass (manual verification of API endpoints against the live Cloud Run URL)
-- [ ] documentation updated (`docs/deployment.md` with Cloud Run configuration details)
-- [ ] decisions recorded (if needed, e.g. autoscaling limits, environment variable strategy) in `docs/decisions.md` or equivalent
+- [x] implementation complete (Cloud Run service deployed, configured, and publicly reachable)
+- [x] tests pass (manual verification of API endpoints against the live Cloud Run URL)
+- [x] documentation updated (`docs/deployment.md` with Cloud Run configuration details)
+- [x] decisions recorded (if needed, e.g. autoscaling limits, environment variable strategy) in `docs/decisions.md` or equivalent

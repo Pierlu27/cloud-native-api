@@ -42,12 +42,12 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] repository initialized with a consistent structure (`src/`, `docs/`, `specs/`, `terraform/`, `.github/workflows/`)
-- [ ] `./gradlew test` runs successfully locally
-- [ ] spec template available and used as the reference for subsequent specs
-- [ ] initial documents present in `docs/` (at least a README with local setup instructions)
-- [ ] baseline CI workflow present in `.github/workflows/` and run successfully at least once on GitHub Actions
-- [ ] local environment verified: Java, Docker, and Git working; gcloud CLI and Terraform installed (no need to authenticate against a real GCP project at this stage)
+- [x] repository initialized with a consistent structure (`src/`, `docs/`, `specs/`, `terraform/`, `.github/workflows/`)
+- [x] `./gradlew test` runs successfully locally
+- [x] spec template available and used as the reference for subsequent specs
+- [x] initial documents present in `docs/` (at least a README with local setup instructions)
+- [x] baseline CI workflow present in `.github/workflows/` and run successfully at least once on GitHub Actions
+- [x] local environment verified: Java, Docker, and Git working; gcloud CLI and Terraform installed (no need to authenticate against a real GCP project at this stage)
 
 ## 6. Deliverables
 
@@ -57,10 +57,31 @@ Out of scope:
 
 ## 7. Evidence
 
-- local output of `./gradlew test`
-- screenshot or link to the CI run on GitHub Actions
-- repository tree output (e.g. `tree` command) showing the `docs/specs/terraform/workflows` structure
-- version check output for Java, Docker, gcloud CLI, and Terraform
+Retrospective completion record (2026-08-21):
+
+- the repository contains the required Spring Boot/Gradle sources and the
+  `docs/`, `specs/`, `terraform/`, and `.github/workflows/` structure;
+- `specs/SPEC_TEMPLATE.md` exists and all subsequent phase specs follow its
+  structure;
+- `README.md`, `docs/architecture.md`, and `docs/local-toolchain-setup.md`
+  provide the initial project and local setup documentation;
+- commit `0e6ed7020343342c3298018c4959a537085d2cfb` introduced the completed
+  Phase 0 setup and baseline workflow. Its own GitHub Actions run failed, so it
+  is not used as successful CI evidence. The same baseline was subsequently
+  exercised successfully by the first Phase 1 push in
+  [GitHub Actions run 31944062868](https://github.com/Pierlu27/cloud-native-api/actions/runs/31944062868);
+- the stronger Phase 1 test suite later passed locally and in CI, as recorded
+  by the completed Phase 1 acceptance checklist, superseding the minimal
+  Phase 0 test evidence;
+- Java, Git, Docker, gcloud CLI, and Terraform executables are installed. A
+  2026-08-21 recheck found Git `2.49.0.windows.1`, Docker client `29.5.3`,
+  Google Cloud SDK `581.0.0`, and a Terraform executable installed through
+  WinGet. Gradle also resolved the Java 25 toolchain required by the current
+  build;
+- the 2026-08-21 local test recheck compiled the current application but could
+  not complete two Testcontainers-based tests because the Docker daemon was
+  not running. This is a current runtime prerequisite, not a missing Phase 0
+  deliverable.
 
 ## 8. Risks and mitigations
 
@@ -73,7 +94,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (repository bootstrap, folder structure, baseline CI, initial documentation)
-- [ ] tests pass (`./gradlew test` green both locally and on CI)
-- [ ] documentation updated (README and spec template present and usable)
-- [ ] decisions recorded (if needed, e.g. folder structure choice) in `docs/decisions.md` or equivalent
+- [x] implementation complete (repository bootstrap, folder structure, baseline CI, initial documentation)
+- [x] tests pass (`./gradlew test` green both locally and on CI)
+- [x] documentation updated (README and spec template present and usable)
+- [x] decisions recorded (if needed, e.g. folder structure choice) in `docs/decisions.md` or equivalent

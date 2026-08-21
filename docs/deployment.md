@@ -70,12 +70,20 @@ The service is publicly available at:
 
 `https://cloud-native-api-630606381542.europe-west8.run.app`
 
-The active revision is `cloud-native-api-00004-2p6`, deployed from the
+The active revision is `cloud-native-api-00005-knj`, deployed from the
 immutable image tag `d893465c3bb43001fe8d9c420263a4e7b89a4292`.
 `/actuator/health` returned `UP`, and `/v3/api-docs` generated the public
 HTTPS server URL. The Job API CRUD flow (create, read, update, delete) was
 verified through the public Swagger UI against Supabase PostgreSQL. The service
-uses zero minimum and one maximum instance with a concurrency limit of 20.
+uses zero minimum and one maximum instance, enforced at both service and
+revision level, with a concurrency limit of 20.
+
+Cloud Run checks the application through Spring Boot Actuator rather than only
+testing whether port 8080 is open. The startup and readiness probes call
+`/actuator/health/readiness`; the liveness probe calls
+`/actuator/health/liveness`. Revision `cloud-native-api-00005-knj` introduced
+these HTTP probes and remains available alongside revision
+`cloud-native-api-00004-2p6` for rollback.
 
 ## Target flow
 

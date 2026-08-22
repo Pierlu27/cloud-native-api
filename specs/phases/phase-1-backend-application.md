@@ -41,7 +41,7 @@ Out of scope:
 ## 4. Non-functional requirements
 
 - CI gate: `./gradlew clean build` must pass, including unit and integration tests, before this phase is considered complete.
-- Security: no plaintext credentials in code or config; database connection settings for local development must be externalized (e.g. environment variables or `application.yml` profiles), even though full secrets management is out of scope until Phase 9.
+- Security: no plaintext credentials in code or config; database connection settings for local development must be externalized (e.g. environment variables or `application.yml` profiles). Full cloud secrets management was out of scope for this phase and was subsequently completed in Phase 8.
 - Observability: none required yet beyond default Spring Boot logging; structured logging and monitoring are introduced in Phase 12.
 
 ## 5. Acceptance criteria

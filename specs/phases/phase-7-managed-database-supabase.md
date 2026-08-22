@@ -19,7 +19,7 @@ In scope:
 Out of scope:
 
 - provisioning Supabase through Terraform (optional future improvement; not required for this phase — see note in section 8)
-- Secret Manager integration for storing database credentials (Phase 9, though credentials must not be hardcoded even in this phase)
+- Secret Manager integration for storing database credentials (out of scope during this phase and subsequently completed in Phase 8; credentials still could not be hardcoded here)
 - Supabase-specific features beyond the Postgres database itself (Auth, Storage, Edge Functions, Realtime)
 - any GCP-managed database service (Cloud SQL is explicitly not part of this project)
 
@@ -36,7 +36,7 @@ Out of scope:
 ## 4. Non-functional requirements
 
 - CI gate: no changes to the existing CI pipeline are required in this phase; this is an infrastructure and configuration change verified through manual and integration testing against the real Supabase instance.
-- Security: credentials must never be committed to the repository and must be passed to Cloud Run as environment variables or secrets at deploy time (full Secret Manager integration follows in Phase 9); since Supabase is reachable over the public internet by design, TLS and credential secrecy are the primary controls, rather than network-level isolation like a private VPC.
+- Security: credentials must never be committed to the repository and, during this phase, were passed to Cloud Run as runtime environment variables. Full Secret Manager integration was subsequently completed in Phase 8. Since Supabase is reachable over the public internet by design, TLS and credential secrecy are the primary controls, rather than network-level isolation like a private VPC.
 - Observability: basic Supabase project metrics (database size, active connections, egress usage) must be checked periodically in the Supabase dashboard to avoid silently exceeding Free tier limits.
 
 ## 5. Acceptance criteria
@@ -56,6 +56,8 @@ Out of scope:
 - documentation: updated `docs/deployment.md` describing how the Cloud Run service connects to Supabase, the Supavisor pooling setup, and the rationale for choosing Supabase over Cloud SQL (cost)
 
 ## 7. Evidence
+
+Detailed verification: [`docs/phase-7-verification.md`](../../docs/phase-7-verification.md).
 
 - Supabase Free project and Session Pooler connection were provisioned and
   verified from the application; credentials remain runtime-only.

@@ -193,6 +193,11 @@ only when intentionally discarding local data.
 - Local toolchain setup (Terraform + gcloud): `docs/local-toolchain-setup.md`
 - Phase 1 verification evidence: `docs/phase-1-verification.md`
 - Phase 3 verification evidence: `docs/phase-3-verification.md`
+- Phase 4 security and quality evidence: `docs/phase-4-verification.md`
+- Phase 5 Artifact Registry evidence: `docs/phase-5-verification.md`
+- Phase 6 Cloud Run evidence: `docs/phase-6-verification.md`
+- Phase 7 Supabase evidence: `docs/phase-7-verification.md`
+- Phase 8 Terraform evidence: `docs/phase-8-verification.md`
 
 ## Initial milestones already set
 

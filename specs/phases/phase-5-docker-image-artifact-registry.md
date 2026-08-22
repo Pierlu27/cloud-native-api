@@ -54,6 +54,8 @@ Out of scope:
 
 ## 7. Evidence
 
+Detailed verification: [`docs/phase-5-verification.md`](../../docs/phase-5-verification.md).
+
 Completion record (2026-08-20):
 
 - [GitHub Actions run 32372224961](https://github.com/Pierlu27/cloud-native-api/actions/runs/32372224961)

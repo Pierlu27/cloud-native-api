@@ -8,7 +8,13 @@ a separate state against an empty target project.
 
 - `versions.tf`: Terraform and Google provider compatibility constraints
 - `providers.tf`: Google provider defaults and ADC-based authentication
-- `main.tf`: resources, their relationships, and architectural rationale
+- `main.tf`: shared project metadata and local values
+- `services.tf`: required Google Cloud APIs
+- `artifact-registry.tf`: Docker repository and publisher access
+- `iam.tf`: runtime and publisher identities, WIF trust, and impersonation
+- `secrets.tf`: Secret Manager containers and runtime access
+- `cloud-run.tf`: Cloud Run service and its public invoker grant
+- `observability.tf`: log-based metric and Monitoring alert policy
 - `variables.tf`: typed, validated, non-sensitive input declarations
 - `outputs.tf`: non-sensitive infrastructure outputs
 - `terraform.tfvars.example`: portable template for environment-specific values

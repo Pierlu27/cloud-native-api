@@ -178,6 +178,15 @@ applications designed to reread files during rotation. This application expects
 Spring datasource environment variables, so changing to volume mounts would be
 an application and architecture change, not merely a Terraform syntax change.
 
+Phase 10 will automate deployment of newly published container images, but an
+image deployment and a secret rotation are independent events. The delivery
+pipeline must not silently replace a pinned secret version or resolve `latest`.
+Until a dedicated rotation workflow is designed, changing the numeric version
+remains an explicit, reviewed Terraform change. A future workflow may accept the
+new version as an approved parameter and automate the plan, new revision,
+readiness/database verification, rollback window, and retirement of the old
+version; it must preserve the same safety sequence described above.
+
 Reference: [Google Cloud Run secret configuration](https://cloud.google.com/run/docs/configuring/services/secrets).
 
 ## Importing existing infrastructure

@@ -54,9 +54,11 @@ Security checks for every rotation:
 5. disable the previous version only after rollback no longer depends on it;
 6. confirm the final Terraform plan is empty.
 
-The complete operational sequence is in `docs/deployment.md`. Automated
-rotation remains out of scope; this procedure defines a controlled manual
-cutover.
+The complete operational sequence is in `docs/deployment.md`. Phase 10 image
+delivery does not implicitly rotate secrets. Automated rotation remains out of
+scope until a dedicated workflow can accept an approved numeric version and
+preserve the same verification and rollback controls; this procedure defines
+the current controlled manual cutover.
 
 ## False-positive exception process
 

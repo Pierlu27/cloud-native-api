@@ -38,7 +38,9 @@ Out of scope:
 
 ## 7. Evidence
 
-- screenshots/logs/reports to collect:
+- reproducible commands, sanitized outputs, run links, and reports to collect:
+- screenshots only when the visual state of an interface is itself part of the
+  requirement and cannot be demonstrated more reliably through textual evidence:
 
 ## 8. Risks and mitigations
 

@@ -4,12 +4,13 @@ This folder contains the project documentation used by the spec-driven workflow.
 
 ## Contents
 
-- `architecture.md` - target and local architecture overview
+- `architecture.md` - current local/cloud architecture and management boundaries
 - `decisions.md` - architecture decision log
-- `deployment.md` - deployment notes
+- `deployment.md` - deployment and Terraform operating runbook
 - `local-toolchain-setup.md` - local setup for Terraform and gcloud
 - `security.md` - security notes and constraints
 - `phase-4-verification.md` - Phase 4 security and quality-gate evidence
+- `phase-8-verification.md` - Phase 8 Terraform adoption and runtime evidence
 
 ## Local setup checklist
 

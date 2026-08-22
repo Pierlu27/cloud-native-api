@@ -49,5 +49,6 @@ curl -fsS "$BASE_URL/v3/api-docs"
 ## Automated verification
 
 Run `./gradlew test`. The integration tests use an isolated PostgreSQL 16 Testcontainer,
-so Docker must be running. Attach the successful local output and the green GitHub
-Actions run to the phase record before marking the Phase 1 checklist complete.
+so Docker must be running. The completed Phase 1 checklist is supported by these
+reproducible requests, the automated test suite, and the green GitHub Actions
+quality gate retained by later phases.

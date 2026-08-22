@@ -99,16 +99,16 @@ time: Spring Boot Gradle plugin, OWASP Dependency-Check, Dependency Management,
 the Gradle Wrapper, and GitHub Actions. Any temporary exception introduced in a
 blocking gate must name the CVE, owner, justification, and expiry date.
 
-## GitHub Actions evidence to record
+## GitHub Actions evidence status
 
-- a successful pull-request run showing `Dependency scan`, `Secret scan`, and
-  `Static analysis` alongside `Build and test`;
-- a deliberately introduced fake secret causing `Secret scan` to fail, followed
-  by a revert and a successful run;
-- a deliberately introduced high/critical vulnerable test dependency causing
-  `Dependency scan` to fail, followed by a revert and a successful run;
-- the pull-request URL and textual check/annotation output for the relevant run;
-- an example of a narrowly scoped false-positive exception and its review link.
+The current clean pipeline is demonstrated by
+[GitHub Actions run 32392965174](https://github.com/Pierlu27/cloud-native-api/actions/runs/32392965174),
+which includes `Build and test`, `Dependency scan`, `Secret scan`, and
+`Static analysis`. The workflow definitions, blocking thresholds, generated
+reports, and time-bounded exceptions provide reproducible evidence of the gate
+behavior.
 
-Deliberately unsafe test changes must only be pushed to a dedicated verification
-branch and reverted immediately after collecting evidence.
+The original links for deliberately introduced fake-secret and vulnerable-test
+commits were not retained. Those unsafe changes were reverted and were not
+recreated merely to manufacture retrospective evidence. Any future destructive
+gate test must use a dedicated verification branch and be reverted immediately.

@@ -17,7 +17,7 @@ Out of scope:
 
 - Docker image scanning (Phase 5, since no image is built yet at this stage)
 - Jenkins-side security scanning (Phase 14-18, handled separately for the Jenkins pipeline)
-- Secret Manager and IAM setup on GCP (Phase 9)
+- Secret Manager and runtime IAM setup on GCP (out of scope here and subsequently completed in Phase 8)
 - fixing every possible low-severity finding across all dependencies (only high/critical findings are required to block the pipeline; lower-severity findings are tracked but not necessarily blocking)
 
 ## 3. Functional requirements

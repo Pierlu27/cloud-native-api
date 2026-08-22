@@ -55,6 +55,8 @@ Out of scope:
 
 ## 7. Evidence
 
+Detailed verification: [`docs/phase-6-verification.md`](../../docs/phase-6-verification.md).
+
 Completion record updated on 2026-08-21:
 
 - public HTTPS URL:

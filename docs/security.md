@@ -31,6 +31,35 @@ removed must still be treated as exposed. For repositories owned by a GitHub
 organization, configure the `GITLEAKS_LICENSE` secret if required by the
 Gitleaks GitHub Action; personal repositories do not require it.
 
+## Runtime secrets and rotation
+
+Terraform manages the three Secret Manager containers, secret-scoped IAM
+members, and Cloud Run references. Database payloads are added outside Terraform
+so they do not enter configuration, plans, or state. The dedicated Cloud Run
+runtime service account can read only those three secrets; it does not publish
+or retrieve container images.
+
+Datasource secrets are injected as environment variables pinned to numeric
+versions. Cloud Run resolves each value before an instance starts, so running
+instances do not observe a later payload automatically. A rotation must update
+the numeric Terraform reference and deploy a new Cloud Run revision.
+
+Security checks for every rotation:
+
+1. never print or pass the payload through Terraform, CI, command history, or
+   application logs;
+2. review the plan before creating the new revision;
+3. verify readiness and a database-backed operation on the new revision;
+4. retain the previous secret version during the rollback window;
+5. disable the previous version only after rollback no longer depends on it;
+6. confirm the final Terraform plan is empty.
+
+The complete operational sequence is in `docs/deployment.md`. Phase 10 image
+delivery does not implicitly rotate secrets. Automated rotation remains out of
+scope until a dedicated workflow can accept an approved numeric version and
+preserve the same verification and rollback controls; this procedure defines
+the current controlled manual cutover.
+
 ## False-positive exception process
 
 Never suppress a finding until the value has been reviewed and confirmed not

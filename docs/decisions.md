@@ -109,6 +109,14 @@ exposure. ADC avoids a downloaded service-account key in the repository. The
 Supabase project is an external managed service and importing it would require a
 separate provider and lifecycle that are not needed for the Phase 8 objective.
 
+Secret-backed environment variables use explicit numeric versions rather than
+`latest`. Cloud Run resolves them when each instance starts; pinning makes every
+instance of a revision deterministic and avoids different instances resolving
+different payloads during a rotation. The trade-off is intentional: rotating a
+secret requires updating the Terraform reference and creating a new Cloud Run
+revision, followed by health and database verification before the previous
+secret version is disabled.
+
 ## ADR-011 Passive Phase 8 observability
 
 **Decision**: retain Cloud Run's automatic request logs and built-in metrics,

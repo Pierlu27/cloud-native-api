@@ -130,6 +130,56 @@ The runtime service account receives `roles/secretmanager.secretAccessor` on
 each of these secrets individually. It does not receive project-wide secret
 access or Artifact Registry writer permissions.
 
+### Secret resolution and rotation
+
+A Secret Manager secret is a stable container; each payload added to it is an
+immutable numbered version. A Cloud Run revision is also immutable and records
+which secret version supplies each environment variable.
+
+Cloud Run resolves a secret-backed environment variable when an instance starts
+and passes that value to the container process. It does not refresh an already
+running process when the Secret Manager payload changes. Google therefore
+recommends pinning environment-variable secrets to a numeric version instead of
+`latest`; the current Terraform configuration pins version `2`.
+
+This has two practical consequences:
+
+- an existing instance continues using the value loaded at its startup;
+- a new instance of the same revision also reads version `2`, even if version
+  `3` has since been added to Secret Manager.
+
+Rotate one of the application secrets with this procedure:
+
+1. Add the new payload out of band and note its numeric version without printing
+   the value.
+2. Confirm that the new version is enabled and that the matching external
+   system change, such as a database credential rotation, is ready.
+3. Change only the affected `version` reference in `terraform/cloud-run.tf`
+   from the previous number to the new number.
+4. Review `terraform plan`. The plan must contain no payload and must preserve
+   the image, runtime identity, probes, scaling, and public IAM configuration.
+5. Run `terraform apply`. Updating the service template creates a new Cloud Run
+   revision; Terraform does not rebuild or republish the image.
+6. Wait for the new revision to become ready, then verify the readiness endpoint
+   and a database-backed API operation through `cloud_run_service_url`.
+7. Confirm that the latest ready revision receives 100 percent of traffic and
+   that the final Terraform plan is empty.
+8. Keep the previous secret version enabled for the agreed rollback window.
+   Disable it only after the new revision is proven stable and rollback to a
+   revision that references the old version is no longer required.
+
+If verification fails, restore the previous numeric reference and apply again,
+or use the documented Cloud Run rollback procedure once Phase 10 formalizes it.
+Never delete or disable the previous version before a working revision using the
+new value has been verified.
+
+Secret volumes have different refresh semantics and can be more suitable for
+applications designed to reread files during rotation. This application expects
+Spring datasource environment variables, so changing to volume mounts would be
+an application and architecture change, not merely a Terraform syntax change.
+
+Reference: [Google Cloud Run secret configuration](https://cloud.google.com/run/docs/configuring/services/secrets).
+
 ## Importing existing infrastructure
 
 `terraform import` does not edit a `.tf` file and does not recreate the remote

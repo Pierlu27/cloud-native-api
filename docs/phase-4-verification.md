@@ -107,7 +107,7 @@ blocking gate must name the CVE, owner, justification, and expiry date.
   by a revert and a successful run;
 - a deliberately introduced high/critical vulnerable test dependency causing
   `Dependency scan` to fail, followed by a revert and a successful run;
-- a screenshot of the pull-request checks or annotations;
+- the pull-request URL and textual check/annotation output for the relevant run;
 - an example of a narrowly scoped false-positive exception and its review link.
 
 Deliberately unsafe test changes must only be pushed to a dedicated verification

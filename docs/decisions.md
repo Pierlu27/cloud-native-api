@@ -11,12 +11,24 @@
 **Reason**: keep the managed database at zero cost while separating the data
 layer from Cloud Run. Cloud SQL is explicitly deferred because stopped
 instances can still incur storage and IP charges. TLS is required and
-credentials remain runtime-only until Secret Manager is introduced in Phase 9.
+credentials are injected into Cloud Run through Secret Manager references
+managed in Phase 8; their payloads remain outside Terraform configuration and
+state.
 
 ## ADR-003 Terraform
 
-**Decision**: provision infrastructure through IaC.  
-**Reason**: reproducibility, infrastructure versioning, PR-based review.
+**Decision**: manage the Phase 8 GCP infrastructure with a flat Terraform root
+module and local state. Organize the root module into thematic `.tf` files but
+do not introduce child modules, workspaces, or a remote backend yet. Adopt the
+existing GCP resources with `terraform import` and use a separate state when
+targeting another project.
+
+**Reason**: Terraform provides reproducible, versioned, reviewable declarations
+without adding multi-environment orchestration before it is needed. Terraform
+loads all `.tf` files in the root directory as one module, so splitting the
+configuration improves readability without changing resource addresses. Local
+state is sufficient for the current single-developer learning phase; the import
+runbook makes its resource mappings recoverable if the local state is lost.
 
 ## ADR-004 GitHub Actions
 
@@ -82,3 +94,31 @@ signals avoid treating a temporary dependency-readiness problem as a dead JVM.
 Zero minimum instances preserves scale-to-zero, while a maximum of one prevents
 unexpected fan-out and keeps the demo workload within its intended cost and
 Supabase connection limits.
+
+## ADR-010 Terraform secret and provider boundaries
+
+**Decision**: Terraform manages Secret Manager containers, their IAM grants,
+and Cloud Run references, but never manages `google_secret_manager_secret_version`
+resources or accepts database payloads as variables. Secret values are added
+out of band. The Google provider authenticates through local Application
+Default Credentials (ADC). Supabase remains outside the GCP Terraform boundary.
+
+**Reason**: values passed through Terraform can be stored in local state even
+when marked `sensitive`; keeping payloads out of the configuration prevents that
+exposure. ADC avoids a downloaded service-account key in the repository. The
+Supabase project is an external managed service and importing it would require a
+separate provider and lifecycle that are not needed for the Phase 8 objective.
+
+## ADR-011 Passive Phase 8 observability
+
+**Decision**: retain Cloud Run's automatic request logs and built-in metrics,
+then add one log-based counter for this service's HTTP 5xx responses and one
+Monitoring alert policy. Sum the counter over five minutes and allow a value
+above zero for 60 seconds to open an incident. Do not create an uptime check or
+attach a notification channel in this phase.
+
+**Reason**: the passive pipeline demonstrates the relationship between Logging,
+a log-based metric, Monitoring, and an alert without generating synthetic
+traffic that might keep Cloud Run or Supabase active. Console-only incidents are
+enough for the short-lived learning environment; notification routing and more
+advanced service-level monitoring remain Phase 12 work.

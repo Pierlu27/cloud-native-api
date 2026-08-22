@@ -64,9 +64,9 @@ Out of scope:
 ## 7. Evidence
 
 - sample requests/responses for each endpoint (e.g. curl commands or Postman collection export)
-- screenshot of Swagger UI showing all endpoints
+- generated OpenAPI document or endpoint inventory showing all routes
 - local run output (`./gradlew clean build`) showing unit and integration tests passing
-- CI run link/screenshot confirming the pipeline is green with this phase's tests included
+- CI run link confirming the pipeline is green with this phase's tests included
 
 ## 8. Risks and mitigations
 

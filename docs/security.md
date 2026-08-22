@@ -66,6 +66,14 @@ unrelated dependency name.
 
 ## Evidence
 
-- GitHub Actions run links and screenshots: `docs/phase-4-verification.md`
+- GitHub Actions run links and generated reports: `docs/phase-4-verification.md`
 - Architecture decisions: `docs/decisions.md`
 - Phase 3 CI baseline evidence: `docs/phase-3-verification.md`
+
+Textual and reproducible evidence is the project default: commands, sanitized
+outputs, test reports, workflow links, resource identifiers, and HTTP results
+can be checked again without depending on a particular console layout.
+Screenshots are retained only for Phase 3 because that phase explicitly studied
+the GitHub Actions and pull-request interface: the visual quality-gate status
+and cache presentation were themselves part of the learning evidence. They do
+not establish a screenshot requirement for later phases.

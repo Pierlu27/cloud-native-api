@@ -33,7 +33,11 @@ cloud-run-env.yaml
 
 # Terraform state
 .terraform/
-.terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.*
 terraform.tfvars
+*.tfplan
+.terraform.tfstate.lock.info
+
+# Terraform provider lock file is intentionally versioned for reproducibility.
+!.terraform.lock.hcl

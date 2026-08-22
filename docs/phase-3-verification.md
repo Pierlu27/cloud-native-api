@@ -199,6 +199,13 @@ state. ([GitHub][1])
 | Pull-request status screenshot            | Figure 2                          |
 | Gradle cache screenshot                   | Figure 1                          |
 
+These two screenshots are intentionally retained as Phase 3 historical
+evidence. That phase introduced the GitHub Actions pull-request experience, so
+the visual presentation of the quality gate and cache behavior was part of the
+learning objective. Later phases prefer reproducible textual evidence such as
+commands, sanitized outputs, reports, workflow links, and HTTP results; the
+Phase 3 figures do not create a general screenshot requirement.
+
 [1]: https://github.com/Pierlu27/cloud-native-api/actions/runs/32041304939/job/95421379293 "ci: implement Phase 3 GitHub Actions quality gate · Pierlu27/cloud-native-api@8e05a0d · GitHub"
 [2]: https://github.com/Pierlu27/cloud-native-api/actions/runs/32040483264 "ci: implement Phase 3 GitHub Actions quality gate · Pierlu27/cloud-native-api@a157782 · GitHub"
 [3]: https://github.com/Pierlu27/cloud-native-api/actions/runs/32041779061 "ci: implement Phase 3 GitHub Actions quality gate · Pierlu27/cloud-native-api@c6dbb2f · GitHub"

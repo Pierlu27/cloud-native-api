@@ -39,7 +39,7 @@ Out of scope:
 9. After a successful smoke test, the workflow must automatically promote the exact tested revision to 100% traffic. It must not promote the generic `LATEST` target, which could refer to a different revision if deployments overlap.
 10. Main-branch deployments must be serialized with a GitHub Actions concurrency group so that two workflow runs cannot race while creating, testing, or promoting revisions.
 11. The temporary candidate tag must be removed after the validation flow, including after a failed smoke test, so that obsolete candidate URLs do not remain publicly routable. Removing the tag must not delete the immutable revision.
-12. Terraform must continue managing the Cloud Run service's structural configuration, including scaling, probes, resources, runtime identity, and numeric Secret Manager references. Its lifecycle configuration must ignore post-bootstrap changes to the container image and traffic, which are owned by the delivery workflow.
+12. Terraform must continue managing the Cloud Run service's structural configuration, including scaling, probes, resources, runtime identity, and numeric Secret Manager references. Its lifecycle configuration must ignore post-bootstrap changes to the container image, explicit revision name, workflow traceability labels, and traffic, which are owned by the delivery workflow. Only the known `commit-sha` and `managed-by` labels are ignored; unrelated template-label drift must remain visible.
 13. The image-only deployment command must preserve the Terraform-managed Cloud Run configuration rather than replacing environment variables, secret references, probes, scaling settings, or the runtime service account.
 14. Each deployment must record enough metadata to correlate the Cloud Run revision with its Git commit SHA and GitHub Actions run. The candidate revision and tag must use deterministic names derived from the commit SHA and run ID, and the workflow summary must report the full SHA, immutable image, revision, tag, and run link.
 15. Pull-request workflows must still be created for documentation-only changes so that the required `Build and test` check does not remain pending. A lightweight change-classification job must allow the expensive build, dependency scan, static analysis, publish, and deployment jobs to be skipped successfully.
@@ -75,7 +75,7 @@ Out of scope:
 ## 6. Deliverables
 
 - code: no application code changes expected in this phase; a small repository script may be added if it makes the smoke-test and failure-gate behavior easier to test and understand
-- infrastructure: Terraform resources for the dedicated deployer, its least-privilege IAM grants and WIF impersonation binding, plus the explicit Cloud Run image/traffic lifecycle ownership boundary
+- infrastructure: Terraform resources for the dedicated deployer, its least-privilege IAM grants and WIF impersonation binding, plus the explicit Cloud Run image/revision-metadata/traffic lifecycle ownership boundary
 - workflow: keep `.github/workflows/ci.yml` as the event and dependency orchestrator, then call `.github/workflows/cloud-run-deploy.yml` after `image-publish`; the reusable workflow uses WIF authentication, deploys the immutable image without traffic, smoke-tests the tagged candidate, promotes and verifies the exact revision, and cleans up the temporary tag
 - documentation: updated `docs/deployment.md` describing the full delivery pipeline, the tagging strategy, and the rollback procedure, step by step
 - decisions: updated `docs/decisions.md` recording the Terraform/CD ownership boundary, the separate deployment identity, and automatic promotion after a successful smoke test
@@ -87,7 +87,7 @@ Out of scope:
 - GitHub Actions log of the smoke test passing before promotion
 - GitHub Actions log of a controlled failing smoke test preventing promotion while the previous revision remains stable
 - command output demonstrating a manual rollback to a previous revision using traffic migration
-- a final empty Terraform plan demonstrating that Terraform accepts the workflow-owned image and traffic while retaining management of structural configuration
+- a final empty Terraform plan demonstrating that Terraform accepts the workflow-owned image, revision metadata, and traffic while retaining management of structural configuration
 
 ## 8. Risks and mitigations
 
@@ -99,8 +99,8 @@ Out of scope:
   mitigation: use Workload Identity Federation exclusively, so GitHub Actions obtains short-lived, automatically expiring tokens tied to the specific workflow run.
 - risk: without a tested rollback procedure, a bad deployment discovered after promotion could take much longer to fix than necessary.
   mitigation: document and rehearse the rollback command (`gcloud run services update-traffic --to-revisions=<previous>=100`) at least once during this phase, so it is a known, low-stress operation rather than something improvised during an incident.
-- risk: Terraform and GitHub Actions could both try to restore different image or traffic values on the same Cloud Run service.
-  mitigation: keep structural settings in Terraform, explicitly ignore workflow-owned image and traffic updates after creation, and verify the boundary with a post-deployment Terraform plan.
+- risk: Terraform and GitHub Actions could both try to restore different image, revision metadata, or traffic values on the same Cloud Run service.
+  mitigation: keep structural settings in Terraform, explicitly ignore the workflow-owned image, deterministic revision name, known traceability labels, and traffic after creation, and verify the boundary with a post-deployment Terraform plan.
 - risk: overlapping main-branch runs could test one revision and accidentally promote a newer untested `LATEST` revision.
   mitigation: serialize deployments and promote the deterministic revision name calculated from the service name, commit SHA, and unique GitHub Actions run ID before the candidate is created.
 - risk: a tagged failed revision could remain reachable even though it receives 0% of traffic from the normal service URL.

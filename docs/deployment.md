@@ -8,8 +8,9 @@ The repository uses three related but separate processes:
    through the publisher identity, and deploys it through the separate deployer
    identity when a deployable commit reaches `main`.
 2. Terraform declares and reconciles the GCP infrastructure and IAM. After the
-   initial Cloud Run bootstrap it deliberately ignores the selected image and
-   traffic, which belong to the delivery workflow.
+   initial Cloud Run bootstrap it deliberately ignores the selected image,
+   explicit revision name, known workflow traceability labels, and traffic,
+   which belong to the delivery workflow.
 3. Cloud Run starts the selected image as the runtime service account, resolves
    the pinned database secret versions at container startup, and connects to the
    external Supabase database.
@@ -309,7 +310,8 @@ The reusable workflow performs this sequence:
 7. Remove the candidate tag after success or failure. This removes its temporary
    URL but retains the immutable revision for inspection or rollback.
 
-The deployment action changes only the image and traffic-owned delivery state.
+The deployment action changes only the image, revision metadata, and
+traffic-owned delivery state.
 It does not pass replacement environment variables, secret flags, probe flags,
 scaling flags, or a different service account, so the existing
 Terraform-managed revision template is inherited. The workflow summary records
@@ -393,6 +395,7 @@ image: it moves normal service traffic back to an already existing revision.
    curl --fail "${SERVICE_URL}/api/jobs"
    ```
 
-Terraform ignores workflow-owned image and traffic changes, so a later plan
-must not attempt to undo this rollback. The next successful application deploy
-will create and validate a new revision before moving traffic forward again.
+Terraform ignores the workflow-owned image, revision metadata, and traffic
+changes, so a later plan must not attempt to undo this rollback. The next
+successful application deploy will create and validate a new revision before
+moving traffic forward again.

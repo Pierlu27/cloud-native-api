@@ -59,18 +59,18 @@ Out of scope:
 
 - [x] the existing WIF provider permits the main-branch GitHub identity to impersonate a dedicated deployer, with no service account key stored as a secret
 - [x] publisher, deployer, and runtime remain distinct identities with repository/service-scoped least-privilege grants
-- [ ] a successful push or merge to main triggers the full pipeline (build, test, security scan, Docker build, push, deploy) end to end
-- [ ] the deployed image is tagged with the commit SHA, verified via `gcloud run services describe` or the Cloud Run Console
-- [ ] new revisions are deployed with `--no-traffic`, are tested through their temporary tagged URL, and only the exact tested revision is promoted to 100%
-- [ ] the smoke test verifies both the readiness endpoint and the read-only Job API database path before promotion
-- [ ] a deliberately failing smoke test correctly blocks traffic promotion, leaves the previous revision serving all normal traffic, and cleans up the temporary tag
-- [ ] rollback procedure tested manually at least once: traffic successfully redirected back to a previous stable revision using `gcloud run services update-traffic`
-- [ ] after an automated deployment, `terraform plan` does not attempt to restore the previous image or traffic allocation
-- [ ] the deployed revision retains the Terraform-managed runtime identity, secret versions, probes, resources, and scaling configuration
-- [ ] the full pipeline run, from push to production traffic, is visible end to end in the GitHub Actions run log
-- [ ] a documentation-only pull request runs secret scanning and resolves the required `Build and test` check without running build, dependency scan, static analysis, image, or deployment work
+- [x] a successful push or merge to main triggers the full pipeline (build, test, security scan, Docker build, push, deploy) end to end
+- [x] the deployed image is tagged with the commit SHA, verified via `gcloud run services describe` or the Cloud Run Console
+- [x] new revisions are deployed with `--no-traffic`, are tested through their temporary tagged URL, and only the exact tested revision is promoted to 100%
+- [x] the smoke test verifies both the readiness endpoint and the read-only Job API database path before promotion
+- [x] a deliberately failing smoke test correctly blocks traffic promotion, leaves the previous revision serving all normal traffic, and cleans up the temporary tag
+- [x] rollback procedure tested manually at least once: traffic successfully redirected back to a previous stable revision using `gcloud run services update-traffic`
+- [x] after an automated deployment, `terraform plan` does not attempt to restore the previous image or traffic allocation
+- [x] the deployed revision retains the Terraform-managed runtime identity, secret versions, probes, resources, and scaling configuration
+- [x] the full pipeline run, from push to production traffic, is visible end to end in the GitHub Actions run log
+- [x] a documentation-only pull request runs secret scanning and resolves the required `Build and test` check without running build, dependency scan, static analysis, image, or deployment work
 - [ ] merging that documentation-only pull request does not publish an image or create a Cloud Run revision
-- [ ] a mixed documentation-and-code change still executes the complete pipeline
+- [x] a mixed documentation-and-code change still executes the complete pipeline
 
 ## 6. Deliverables
 
@@ -116,7 +116,7 @@ Out of scope:
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (dedicated deployer and WIF grant configured, deployment stage added to the pipeline, and no-traffic deploy + smoke test + exact-revision promotion flow working end to end)
-- [ ] tests pass (smoke test correctly gates promotion; a full pipeline run successfully deploys and promotes a new revision)
+- [x] implementation complete (dedicated deployer and WIF grant configured, deployment stage added to the pipeline, and no-traffic deploy + smoke test + exact-revision promotion flow working end to end)
+- [x] tests pass (smoke test correctly gates promotion; a full pipeline run successfully deploys and promotes a new revision)
 - [x] documentation updated (`docs/deployment.md` describing the delivery pipeline and the rollback procedure)
 - [x] decisions recorded in `docs/decisions.md`, including WIF vs. keys, separate publisher/deployer/runtime identities, Terraform vs. delivery ownership, and automatic post-smoke-test promotion

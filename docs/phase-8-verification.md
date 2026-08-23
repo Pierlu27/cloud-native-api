@@ -154,6 +154,11 @@ Terraform created the passive log-based metric
 the `cloud-native-api` service with an HTTP status from 500 through 599. It is a
 `DELTA`/`INT64` counter with no custom labels.
 
+The Terraform configuration constructs the multiline filter with `join("\n",
+...)` and `format("%s\n", ...)`. The explicit LF separators preserve the same
+filter and final newline on Windows and Linux, preventing CRLF/LF differences
+from appearing as a perpetual in-place update in `terraform plan`.
+
 The alert policy `Cloud Run HTTP 5xx detected` evaluates the custom metric with:
 
 - five-minute alignment period and `ALIGN_SUM`

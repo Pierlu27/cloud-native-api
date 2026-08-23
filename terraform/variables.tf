@@ -60,6 +60,17 @@ variable "publisher_service_account_id" {
   }
 }
 
+variable "deployer_service_account_id" {
+  description = "Account ID of the service account impersonated by GitHub Actions to deploy Cloud Run revisions."
+  type        = string
+  default     = "github-cloud-run-deployer"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.deployer_service_account_id))
+    error_message = "deployer_service_account_id must be 6-30 characters, start with a lowercase letter, end with a lowercase letter or digit, and contain only lowercase letters, digits, or hyphens."
+  }
+}
+
 variable "workload_identity_pool_id" {
   description = "ID of the Workload Identity Pool used by GitHub Actions."
   type        = string

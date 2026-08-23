@@ -124,12 +124,15 @@ resource "google_cloud_run_v2_service" "application" {
   # but the IAM grants must also exist before Cloud Run starts the revision.
   depends_on = [google_secret_manager_secret_iam_member.runtime_accessor]
 
-  # These fields only record which deployment client last touched the service;
-  # they are operational provenance, not desired application configuration.
+  # Terraform owns the service structure, while the Phase 9 delivery workflow
+  # owns the deployed image and traffic after the initial service creation.
+  # Client fields are operational provenance rather than desired configuration.
   lifecycle {
     ignore_changes = [
       client,
       client_version,
+      template[0].containers[0].image,
+      traffic,
     ]
   }
 }

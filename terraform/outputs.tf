@@ -11,3 +11,10 @@ output "artifact_registry_repository_name" {
   description = "Name of the Artifact Registry Docker repository."
   value       = google_artifact_registry_repository.application.name
 }
+
+# Exposes the identity that the Phase 9 GitHub Actions deployment job impersonates.
+
+output "deployer_service_account_email" {
+  description = "Email of the dedicated GitHub Actions Cloud Run deployer."
+  value       = google_service_account.deployer.email
+}

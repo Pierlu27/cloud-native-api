@@ -4,16 +4,20 @@
 
 The repository uses three related but separate processes:
 
-1. GitHub Actions tests the application and publishes an image to Artifact
-   Registry when a commit reaches `main`.
-2. Terraform declares and reconciles the GCP infrastructure, including the
-   immutable image tag consumed by Cloud Run.
-3. Cloud Run starts that image and reads the database connection values from
-   Secret Manager before connecting to the external Supabase database.
+1. GitHub Actions validates the application, publishes an immutable image
+   through the publisher identity, and deploys it through the separate deployer
+   identity when a deployable commit reaches `main`.
+2. Terraform declares and reconciles the GCP infrastructure and IAM. After the
+   initial Cloud Run bootstrap it deliberately ignores the selected image and
+   traffic, which belong to the delivery workflow.
+3. Cloud Run starts the selected image as the runtime service account, resolves
+   the pinned database secret versions at container startup, and connects to the
+   external Supabase database.
 
-During Phase 8 Terraform is executed manually. It does not watch Git commits,
-start GitHub Actions, build images, or automatically replace `image_tag` when a
-new image is published. Deployment automation remains Phase 9 work.
+Terraform is still executed manually: it does not watch Git commits, start
+GitHub Actions, build images, or run deployments. GitHub Actions does not run
+Terraform in Phase 9 and therefore cannot silently change Terraform-managed
+probes, scaling, resources, runtime identity, or numeric secret references.
 
 ## Prerequisites
 
@@ -169,7 +173,7 @@ Rotate one of the application secrets with this procedure:
    revision that references the old version is no longer required.
 
 If verification fails, restore the previous numeric reference and apply again,
-or use the documented Cloud Run rollback procedure once Phase 9 formalizes it.
+or use the manual Cloud Run rollback procedure below.
 Never delete or disable the previous version before a working revision using the
 new value has been verified.
 
@@ -178,9 +182,9 @@ applications designed to reread files during rotation. This application expects
 Spring datasource environment variables, so changing to volume mounts would be
 an application and architecture change, not merely a Terraform syntax change.
 
-Phase 9 will automate deployment of newly published container images, but an
-image deployment and a secret rotation are independent events. The delivery
-pipeline must not silently replace a pinned secret version or resolve `latest`.
+Phase 9 automates deployment of newly published container images, but an image
+deployment and a secret rotation remain independent events. The delivery
+pipeline does not replace a pinned secret version or resolve `latest`.
 Until a dedicated rotation workflow is designed, changing the numeric version
 remains an explicit, reviewed Terraform change. A future workflow may accept the
 new version as an approved parameter and automate the plan, new revision,
@@ -255,11 +259,12 @@ Terraform resources does not disable shared project APIs.
 
 ## Artifact Registry publishing
 
-The `image-publish` GitHub Actions job runs only for pushes to `main` after the
-build, test, dependency, secret, and static-analysis jobs succeed. It exchanges
-a GitHub OIDC token through Workload Identity Federation and impersonates the
-dedicated publisher service account; no long-lived JSON key is stored in
-GitHub.
+The `image-publish` GitHub Actions job runs for deployable pushes to `main`, or
+for an explicitly requested manual main-branch exercise, after the build, test,
+dependency, secret, and static-analysis jobs succeed. A documentation-only
+merge is excluded before a workflow run is created. The job exchanges a GitHub
+OIDC token through Workload Identity Federation and impersonates the dedicated
+publisher service account; no long-lived JSON key is stored in GitHub.
 
 The publisher has `roles/artifactregistry.writer` only on the
 `cloud-native-api` repository. Each image receives its immutable commit SHA and
@@ -270,14 +275,62 @@ Phase 5 verified image tag
 `a036cb9425a4d4fff1191cfdb37a523164c79706` with manifest digest
 `sha256:75059f78ee5e29f92b3821fc76ccb9fec2f18cb4bd8e84971f2902a7521567b7`.
 
+## Automated Cloud Run delivery
+
+`.github/workflows/ci.yml` is the orchestrator: it owns the repository events,
+change classification, quality gates, image publication, and the dependency
+between publication and deployment. After `image-publish` succeeds, it calls
+the reusable `.github/workflows/cloud-run-deploy.yml` workflow. `workflow_call`
+means that the second file cannot deploy independently; it receives its GCP
+resource names, deployer identity, WIF provider, and optional controlled-failure
+input from the caller.
+
+The reusable workflow performs this sequence:
+
+1. Exchange the GitHub OIDC identity through WIF and impersonate the dedicated
+   deployer service account.
+2. Select the image tagged with the full `GITHUB_SHA`; the mutable `latest` tag
+   is never a deployment target.
+3. Calculate a unique revision name
+   `cloud-native-api-sha-<short-sha>-run-<run-id>` and temporary tag
+   `candidate-<short-sha>-<run-id>`. The run ID prevents two executions of the
+   same commit from requesting the same revision name.
+4. Deploy the candidate with `no_traffic: true`. The normal service URL still
+   routes 100% to the previous stable revision, while the tag creates a
+   dedicated URL for the candidate. Because invocation is public at service
+   level, the tagged URL is also reachable until the tag is removed.
+5. Resolve that URL from Cloud Run's traffic status and smoke-test
+   `/actuator/health/readiness` plus the read-only `/api/jobs` database path.
+   `curl` uses finite timeouts and retries so cold start is tolerated without
+   allowing the workflow to wait forever.
+6. If both requests succeed, assign 100% of normal traffic to the exact tested
+   revision and read the service state again to verify the assignment. The
+   workflow never promotes the generic `LATEST` target.
+7. Remove the candidate tag after success or failure. This removes its temporary
+   URL but retains the immutable revision for inspection or rollback.
+
+The deployment action changes only the image and traffic-owned delivery state.
+It does not pass replacement environment variables, secret flags, probe flags,
+scaling flags, or a different service account, so the existing
+Terraform-managed revision template is inherited. The workflow summary records
+the full commit SHA, immutable image reference, revision name, candidate tag,
+and GitHub Actions run URL.
+
+The manual `workflow_dispatch` input `force_smoke_failure` supports a controlled
+failure exercise. When set to `true`, the workflow first calls the real smoke
+test endpoints and then deliberately exits with an error. The promotion step is
+skipped, normal traffic stays on the previous revision, and the `always()`
+cleanup step removes the temporary tag. This option is for acceptance testing,
+not normal deployment.
+
 ## Current Cloud Run configuration
 
-Phase 8 adopted the existing service and created revision
+Phase 8 adopted the existing service and created baseline revision
 `cloud-native-api-00006-9pd` while migrating the datasource values to Secret
-Manager references. It preserves:
+Manager references. Phase 9 creates subsequent immutable revisions without
+replacing the following Terraform-managed settings:
 
-- the immutable image tag declared in `terraform.tfvars`
-- 100% of traffic to the latest ready revision
+- the runtime service account and numeric Secret Manager references
 - public invocation through the additive `allUsers` invoker member
 - zero minimum and one maximum instance at service and revision level
 - 20 concurrent requests per container
@@ -289,9 +342,57 @@ application. Docker does not create them. An HTTP probe verifies the expected
 application health response, whereas a TCP probe would only prove that a process
 accepts connections on the port.
 
-## Rollback boundary
+## Manual Cloud Run rollback
 
-Cloud Run retains earlier revisions and Artifact Registry retains immutable SHA
-tags. The operational rollback workflow and automated deployment are completed
-in Phase 9; Phase 8 only preserves the prerequisites and does not move traffic
-automatically when a new image is published.
+Cloud Run retains earlier immutable revisions and Artifact Registry retains the
+corresponding commit-SHA images. A rollback does not rebuild or redeploy the old
+image: it moves normal service traffic back to an already existing revision.
+
+1. List the available revisions and identify a previously verified revision:
+
+   ```bash
+   gcloud run revisions list \
+     --service cloud-native-api \
+     --region europe-west8 \
+     --project project-c42baf60-7736-408b-9ff
+   ```
+
+2. Review the chosen revision before changing traffic. In particular, verify
+   its image, readiness, runtime service account, and secret-version references.
+   A revision that uses an old disabled database secret is not a safe rollback
+   target.
+
+3. Move all normal traffic to that exact revision, never to `LATEST`:
+
+   ```bash
+   PREVIOUS_REVISION="replace-with-reviewed-revision-name"
+
+   gcloud run services update-traffic cloud-native-api \
+     --region europe-west8 \
+     --project project-c42baf60-7736-408b-9ff \
+     --to-revisions "${PREVIOUS_REVISION}=100"
+   ```
+
+4. Confirm the effective routing and exercise readiness plus the database-backed
+   read endpoint:
+
+   ```bash
+   gcloud run services describe cloud-native-api \
+     --region europe-west8 \
+     --project project-c42baf60-7736-408b-9ff \
+     --format="yaml(status.traffic)"
+
+   SERVICE_URL="$(
+     gcloud run services describe cloud-native-api \
+       --region europe-west8 \
+       --project project-c42baf60-7736-408b-9ff \
+       --format="value(status.url)"
+   )"
+
+   curl --fail "${SERVICE_URL}/actuator/health/readiness"
+   curl --fail "${SERVICE_URL}/api/jobs"
+   ```
+
+Terraform ignores workflow-owned image and traffic changes, so a later plan
+must not attempt to undo this rollback. The next successful application deploy
+will create and validate a new revision before moving traffic forward again.

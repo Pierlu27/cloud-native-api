@@ -1,18 +1,94 @@
 # Workflow: validates every change sent to the main branch.
 name: CI
 
-# Workflow triggers: run for direct pushes and pull requests targeting main.
+# Workflow triggers: validate pull requests and deployable main changes; manual
+# runs on main also support the controlled smoke-test failure exercise.
 on:
+  workflow_dispatch:
+    inputs:
+      force_smoke_failure:
+        description: Force a controlled smoke-test failure without promoting the candidate
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
+    # A documentation-only merge was already secret-scanned in its pull
+    # request and does not produce a different application artifact.
+    paths-ignore:
+      - README.md
+      - LICENSE
+      - "docs/**"
+      - "specs/**"
   pull_request:
     branches: [main]
 
-# Jobs: build/test, dependency, secret, and static-analysis gates run independently.
+# Jobs: first classify the change, then run only the applicable validation gates.
 jobs:
+  changes:
+    # Change classifier: preserve required PR checks without building an
+    # unchanged application for documentation-only pull requests.
+    name: Classify changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run_pipeline: ${{ steps.classify.outputs.run_pipeline }}
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect deploy-relevant changes
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Non-documentation pushes that reach this workflow always run the
+          # complete pipeline. Pull requests require path classification.
+          if [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            echo "run_pipeline=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          mapfile -t changed_paths < <(
+            git diff --no-renames --name-only --diff-filter=ACMRTD \
+              "${BASE_SHA}" "${HEAD_SHA}"
+          )
+
+          # An empty or unreadable classification must fail safe by running
+          # the pipeline instead of accidentally skipping validation.
+          run_pipeline=true
+          if (( ${#changed_paths[@]} > 0 )); then
+            run_pipeline=false
+
+            for changed_path in "${changed_paths[@]}"; do
+              case "${changed_path}" in
+                README.md|LICENSE|docs/*|specs/*)
+                  ;;
+                *)
+                  run_pipeline=true
+                  break
+                  ;;
+              esac
+            done
+          fi
+
+          echo "run_pipeline=${run_pipeline}" >> "${GITHUB_OUTPUT}"
+
   build-and-test:
     # Job: compile the application and run every test suite.
     name: Build and test
+    needs:
+      - changes
+    if: needs.changes.outputs.run_pipeline == 'true'
     # Runner: GitHub-hosted Ubuntu includes the Docker daemon used by Testcontainers.
     runs-on: ubuntu-latest
     permissions:
@@ -43,6 +119,9 @@ jobs:
   # Dependency scan: blocks high and critical known vulnerabilities (CVSS >= 7).
   dependency-scan:
     name: Dependency scan
+    needs:
+      - changes
+    if: needs.changes.outputs.run_pipeline == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,7 +165,9 @@ jobs:
   build-dependency-scan:
     name: Build dependency scan
     needs:
+      - changes
       - dependency-scan
+    if: needs.changes.outputs.run_pipeline == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -154,6 +235,9 @@ jobs:
   # Static analysis: Checkstyle reports quality violations for production and test code.
   static-analysis:
     name: Static analysis
+    needs:
+      - changes
+    if: needs.changes.outputs.run_pipeline == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -182,12 +266,16 @@ jobs:
           path: build/reports/checkstyle
           if-no-files-found: warn
 
-  # Image publishing: only main pushes can publish to Artifact Registry, and
-  # only after every build, test, security, and quality gate has passed.
+  # Image publishing: only main pushes or manual main runs can publish to
+  # Artifact Registry, after every build, test, security, and quality gate.
   image-publish:
     name: Build and publish image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.run_pipeline == 'true'
     needs:
+      - changes
       - build-and-test
       - dependency-scan
       - build-dependency-scan
@@ -236,3 +324,26 @@ jobs:
         env:
           IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}
         run: docker buildx imagetools inspect "${IMAGE}:${GITHUB_SHA}"
+
+  # Call the reusable delivery workflow only after the immutable image exists.
+  deploy:
+    name: Deploy candidate and promote
+    needs:
+      - image-publish
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/cloud-run-deploy.yml
+    with:
+      project_id: project-c42baf60-7736-408b-9ff
+      region: europe-west8
+      repository: cloud-native-api
+      image_name: cloud-native-api
+      service: cloud-native-api
+      deployer_service_account: ${{ vars.WIF_DEPLOYER_SERVICE_ACCOUNT }}
+      force_smoke_failure: ${{ inputs.force_smoke_failure || false }}
+    secrets:
+      WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}

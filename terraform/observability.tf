@@ -9,13 +9,15 @@ resource "google_logging_metric" "cloud_run_http_5xx" {
   description = "Counts HTTP 5xx responses from the ${var.service_name} Cloud Run service."
   disabled    = false
 
-  filter = <<-EOT
-    resource.type="cloud_run_revision" AND
-    resource.labels.service_name="${var.service_name}" AND
-    log_id("run.googleapis.com/requests") AND
-    httpRequest.status>=500 AND
-    httpRequest.status<600
-  EOT
+  # Construct the multiline filter with explicit LF separators so that
+  # Windows CRLF checkout settings do not create perpetual Terraform drift.
+  filter = format("%s\n", join("\n", [
+    "resource.type=\"cloud_run_revision\" AND",
+    "resource.labels.service_name=\"${var.service_name}\" AND",
+    "log_id(\"run.googleapis.com/requests\") AND",
+    "httpRequest.status>=500 AND",
+    "httpRequest.status<600",
+  ]))
 
   metric_descriptor {
     metric_kind  = "DELTA"

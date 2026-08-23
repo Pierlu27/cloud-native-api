@@ -130,3 +130,37 @@ a log-based metric, Monitoring, and an alert without generating synthetic
 traffic that might keep Cloud Run or Supabase active. Console-only incidents are
 enough for the short-lived learning environment; notification routing and more
 advanced service-level monitoring remain Phase 11 work.
+
+## ADR-012 Continuous delivery identity and Cloud Run ownership
+
+**Decision**: keep the Artifact Registry publisher, Cloud Run deployer, and
+Cloud Run runtime as three separate service accounts. GitHub Actions
+authenticates the publisher and deployer through the existing repository- and
+main-branch-restricted Workload Identity Federation provider; no service
+account key is stored in GitHub. The publisher can write images only to the
+application repository. The deployer can update the application Cloud Run
+service, read its repository, and attach the existing runtime identity to a new
+revision. The runtime identity remains the identity of the running application
+and retains only its secret-scoped access.
+
+Terraform owns the service's structural configuration and IAM, including
+scaling, probes, resources, runtime identity, public invocation, and numeric
+Secret Manager references. After the initial bootstrap, the delivery workflow
+owns the selected container image, immutable revisions, temporary candidate
+tags, and traffic allocation. Terraform therefore ignores image and traffic
+changes while continuing to detect drift in the structural fields it owns.
+
+Every deploy targets the commit-SHA image, creates a uniquely named candidate
+revision with no production traffic, smoke-tests its tagged URL, and promotes
+that exact revision only after validation. Main-branch deploys are serialized,
+and the temporary tag is removed after success or failure. `ci.yml` remains the
+pipeline orchestrator and delegates the Cloud Run sequence to the reusable
+`cloud-run-deploy.yml` workflow.
+
+**Reason**: separate identities preserve least privilege and make each
+credential's purpose auditable. Separating Terraform's stable infrastructure
+ownership from the pipeline's frequently changing delivery state prevents the
+two tools from repeatedly reverting each other. Candidate validation limits
+the effect of a broken image, while deterministic revision names and workflow
+metadata connect production traffic to the source commit and GitHub Actions
+run without relying on the mutable `LATEST` target.

@@ -1,0 +1,236 @@
+# Reusable workflow: deploy and validate one immutable image on Cloud Run.
+name: Cloud Run deployment
+
+on:
+  workflow_call:
+    inputs:
+      project_id:
+        description: Google Cloud project that owns the service and image repository
+        required: true
+        type: string
+      region:
+        description: Google Cloud region of the service and image repository
+        required: true
+        type: string
+      repository:
+        description: Artifact Registry repository name
+        required: true
+        type: string
+      image_name:
+        description: Container image name
+        required: true
+        type: string
+      service:
+        description: Cloud Run service name
+        required: true
+        type: string
+      deployer_service_account:
+        description: Service account impersonated by the delivery workflow
+        required: true
+        type: string
+      force_smoke_failure:
+        description: Force the controlled failure exercise after the real smoke tests
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      WIF_PROVIDER:
+        description: Workload Identity Federation provider resource name
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy candidate and promote
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloud-native-api-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: ${{ inputs.project_id }}
+      REGION: ${{ inputs.region }}
+      REPOSITORY: ${{ inputs.repository }}
+      IMAGE_NAME: ${{ inputs.image_name }}
+      SERVICE: ${{ inputs.service }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # This job runs on a different runner from image-publish, so it needs
+      # its own short-lived Google Cloud credentials.
+      - name: Authenticate deployer to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ inputs.deployer_service_account }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      # The suffix makes the revision name predictable. The run ID prevents
+      # two manual runs of the same commit from requesting the same name.
+      - name: Define candidate metadata
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          short_sha="${GITHUB_SHA:0:8}"
+          revision_suffix="sha-${short_sha}-run-${GITHUB_RUN_ID}"
+
+          echo "image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "revision_suffix=${revision_suffix}" >> "${GITHUB_OUTPUT}"
+          echo "revision_name=${SERVICE}-${revision_suffix}" >> "${GITHUB_OUTPUT}"
+          echo "tag=candidate-${short_sha}-${GITHUB_RUN_ID}" >> "${GITHUB_OUTPUT}"
+
+      # no_traffic keeps production on the previous revision. The temporary
+      # tag creates a dedicated route to this candidate for the smoke tests.
+      - name: Deploy candidate revision without production traffic
+        id: deploy_candidate
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ env.SERVICE }}
+          project_id: ${{ env.PROJECT_ID }}
+          region: ${{ env.REGION }}
+          image: ${{ steps.candidate.outputs.image }}
+          suffix: ${{ steps.candidate.outputs.revision_suffix }}
+          tag: ${{ steps.candidate.outputs.tag }}
+          no_traffic: true
+
+      # Cloud Run records the generated tag URL in the service traffic status.
+      # Reading it avoids reconstructing a region-specific hostname by hand.
+      - name: Resolve candidate URL
+        id: candidate_url
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ steps.candidate.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          candidate_url="$(
+            gcloud run services describe "${SERVICE}" \
+              --project "${PROJECT_ID}" \
+              --region "${REGION}" \
+              --format=json \
+              | jq -r --arg tag "${CANDIDATE_TAG}" \
+                  '[.status.traffic[] | select(.tag == $tag) | (.url // .uri)][0] // empty'
+          )"
+
+          if [[ -z "${candidate_url}" ]]; then
+            echo "::error::Cloud Run did not expose a URL for tag ${CANDIDATE_TAG}."
+            exit 1
+          fi
+
+          echo "url=${candidate_url}" >> "${GITHUB_OUTPUT}"
+
+      # The job summary provides a direct audit trail from the workflow run to
+      # the immutable image and Cloud Run revision that it is about to test.
+      - name: Report candidate metadata
+        shell: bash
+        env:
+          CANDIDATE_IMAGE: ${{ steps.candidate.outputs.image }}
+          CANDIDATE_REVISION: ${{ steps.candidate.outputs.revision_name }}
+          CANDIDATE_TAG: ${{ steps.candidate.outputs.tag }}
+          CANDIDATE_URL: ${{ steps.candidate_url.outputs.url }}
+        run: |
+          set -euo pipefail
+
+          echo "Candidate image: ${CANDIDATE_IMAGE}"
+          echo "Candidate revision: ${CANDIDATE_REVISION}"
+          echo "Candidate tag: ${CANDIDATE_TAG}"
+          echo "Candidate URL: ${CANDIDATE_URL}"
+
+          {
+            echo "### Cloud Run deployment candidate"
+            echo ""
+            echo "- Commit SHA: ${GITHUB_SHA}"
+            echo "- Image: ${CANDIDATE_IMAGE}"
+            echo "- Revision: ${CANDIDATE_REVISION}"
+            echo "- Temporary tag: ${CANDIDATE_TAG}"
+            echo "- GitHub run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # Each curl has a finite timeout and retry count. The optional manual
+      # failure happens only after the real endpoints have been exercised.
+      - name: Smoke test candidate revision
+        shell: bash
+        env:
+          CANDIDATE_URL: ${{ steps.candidate_url.outputs.url }}
+          FORCE_SMOKE_FAILURE: ${{ inputs.force_smoke_failure }}
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 10 --max-time 20 \
+            --output /dev/null \
+            "${CANDIDATE_URL}/actuator/health/readiness"
+
+          curl --fail --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 10 --max-time 20 \
+            --output /dev/null \
+            "${CANDIDATE_URL}/api/jobs"
+
+          if [[ "${FORCE_SMOKE_FAILURE}" == "true" ]]; then
+            echo "::error::Controlled smoke-test failure requested. Candidate will not be promoted."
+            exit 1
+          fi
+
+      # Promotion targets the deterministic revision name tested above; it
+      # never relies on LATEST, which could point at another concurrent deploy.
+      - name: Promote tested revision to production
+        env:
+          REVISION_NAME: ${{ steps.candidate.outputs.revision_name }}
+        run: |
+          gcloud run services update-traffic "${SERVICE}" \
+            --project "${PROJECT_ID}" \
+            --region "${REGION}" \
+            --to-revisions "${REVISION_NAME}=100" \
+            --quiet
+
+      # Re-read Cloud Run instead of assuming that a successful command alone
+      # proves the intended revision became the production target.
+      - name: Verify production traffic target
+        shell: bash
+        env:
+          REVISION_NAME: ${{ steps.candidate.outputs.revision_name }}
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..6}; do
+            production_revision="$(
+              gcloud run services describe "${SERVICE}" \
+                --project "${PROJECT_ID}" \
+                --region "${REGION}" \
+                --format=json \
+                | jq -r \
+                    '[.status.traffic[] | select((.percent // 0) == 100 and (.tag // "") == "") | (.revisionName // .revision)][0] // empty'
+            )"
+
+            if [[ "${production_revision}" == "${REVISION_NAME}" ]]; then
+              echo "Revision ${REVISION_NAME} is serving 100% of production traffic."
+              exit 0
+            fi
+
+            echo "Attempt ${attempt}/6: production still reports '${production_revision:-no revision}'."
+            sleep 5
+          done
+
+          echo "::error::Revision ${REVISION_NAME} was not observed at 100% production traffic."
+          exit 1
+
+      # always() also runs this step after a smoke-test failure. Removing the
+      # tag deletes only its temporary URL, not the candidate revision itself.
+      - name: Remove temporary candidate tag
+        if: ${{ always() && steps.deploy_candidate.outcome == 'success' }}
+        env:
+          CANDIDATE_TAG: ${{ steps.candidate.outputs.tag }}
+        run: |
+          gcloud run services update-traffic "${SERVICE}" \
+            --project "${PROJECT_ID}" \
+            --region "${REGION}" \
+            --remove-tags "${CANDIDATE_TAG}" \
+            --quiet

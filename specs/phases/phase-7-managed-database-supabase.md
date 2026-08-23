@@ -52,7 +52,7 @@ Out of scope:
 ## 6. Deliverables
 
 - code: updated application configuration (`application.yml` / environment variable wiring) to support the Supabase connection string and pool sizing
-- workflow: no CI/CD workflow changes in this phase (deployment step will be extended when Phase 10 formalizes Continuous Delivery)
+- workflow: no CI/CD workflow changes in this phase (deployment step will be extended when Phase 9 formalizes Continuous Delivery)
 - documentation: updated `docs/deployment.md` describing how the Cloud Run service connects to Supabase, the Supavisor pooling setup, and the rationale for choosing Supabase over Cloud SQL (cost)
 
 ## 7. Evidence

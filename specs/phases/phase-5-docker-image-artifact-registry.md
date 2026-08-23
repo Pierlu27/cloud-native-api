@@ -19,7 +19,7 @@ Out of scope:
 - deployment of the image to Cloud Run (Phase 6)
 - managed PostgreSQL integration (Phase 7, implemented with Supabase instead of Cloud SQL)
 - Terraform-managed provisioning of Artifact Registry (Phase 8 formalizes this as IaC; this phase can use manual/CLI setup)
-- Jenkins-side image build and push (Phase 14-18, handled separately)
+- Jenkins-side image build and push (Phase 13-17, handled separately)
 
 ## 3. Functional requirements
 

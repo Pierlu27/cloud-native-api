@@ -13,7 +13,7 @@ The repository uses three related but separate processes:
 
 During Phase 8 Terraform is executed manually. It does not watch Git commits,
 start GitHub Actions, build images, or automatically replace `image_tag` when a
-new image is published. Deployment automation remains Phase 10 work.
+new image is published. Deployment automation remains Phase 9 work.
 
 ## Prerequisites
 
@@ -169,7 +169,7 @@ Rotate one of the application secrets with this procedure:
    revision that references the old version is no longer required.
 
 If verification fails, restore the previous numeric reference and apply again,
-or use the documented Cloud Run rollback procedure once Phase 10 formalizes it.
+or use the documented Cloud Run rollback procedure once Phase 9 formalizes it.
 Never delete or disable the previous version before a working revision using the
 new value has been verified.
 
@@ -178,7 +178,7 @@ applications designed to reread files during rotation. This application expects
 Spring datasource environment variables, so changing to volume mounts would be
 an application and architecture change, not merely a Terraform syntax change.
 
-Phase 10 will automate deployment of newly published container images, but an
+Phase 9 will automate deployment of newly published container images, but an
 image deployment and a secret rotation are independent events. The delivery
 pipeline must not silently replace a pinned secret version or resolve `latest`.
 Until a dedicated rotation workflow is designed, changing the numeric version
@@ -293,5 +293,5 @@ accepts connections on the port.
 
 Cloud Run retains earlier revisions and Artifact Registry retains immutable SHA
 tags. The operational rollback workflow and automated deployment are completed
-in Phase 10; Phase 8 only preserves the prerequisites and does not move traffic
+in Phase 9; Phase 8 only preserves the prerequisites and does not move traffic
 automatically when a new image is published.

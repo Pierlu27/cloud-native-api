@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Ensure that every change pushed to the repository is automatically verified through a GitHub Actions pipeline, extending the baseline CI workflow from Phase 0 into a real quality gate that builds and tests the application on every push. This is the first of two CI/CD implementations planned for the project: a GitHub-native one (this phase) and an independent one based on Jenkins (Phase 14 onwards), sharing the same application, artifact, and cloud infrastructure.
+Ensure that every change pushed to the repository is automatically verified through a GitHub Actions pipeline, extending the baseline CI workflow from Phase 0 into a real quality gate that builds and tests the application on every push. This is the first of two CI/CD implementations planned for the project: a GitHub-native one (this phase) and an independent one based on Jenkins (Phase 13 onwards), sharing the same application, artifact, and cloud infrastructure.
 
 ## 2. Scope
 
@@ -21,7 +21,7 @@ Out of scope:
 - Docker image build and push in CI (Phase 5)
 - deployment automation (Phase 6+)
 - Terraform validation in CI (Phase 8)
-- Jenkins setup, webhook integration, `Jenkinsfile`, and the Jenkins-based CI/CD pipeline (Phase 14-18) — Jenkins is a separate, independent pipeline implementation and is not configured, triggered, or extended as part of this spec
+- Jenkins setup, webhook integration, `Jenkinsfile`, and the Jenkins-based CI/CD pipeline (Phase 13-17) — Jenkins is a separate, independent pipeline implementation and is not configured, triggered, or extended as part of this spec
 
 ## 3. Functional requirements
 
@@ -70,7 +70,7 @@ Out of scope:
 - risk: a pipeline that passes even when tests are skipped or silently ignored would give a false sense of safety.
   mitigation: verify the quality gate by intentionally introducing a failing test and confirming the pipeline reports failure correctly.
 - risk: building this pipeline without keeping the future Jenkins implementation in mind could lead to two CI/CD pipelines with inconsistent stages, making them hard to compare or maintain.
-  mitigation: design the GitHub Actions pipeline stages (build, test, and later security scan, Docker build, registry push) so they can be conceptually mirrored in the `Jenkinsfile` introduced in Phase 16, without duplicating logic in incompatible ways.
+  mitigation: design the GitHub Actions pipeline stages (build, test, and later security scan, Docker build, registry push) so they can be conceptually mirrored in the `Jenkinsfile` introduced in Phase 15, without duplicating logic in incompatible ways.
 
 ## 9. Definition of done (phase)
 

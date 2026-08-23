@@ -21,7 +21,7 @@ publication remained out of scope.
 The two retained revisions demonstrate Cloud Run's automatic revision model:
 executing a deployment with changed configuration or an image creates a new
 immutable revision. It does not mean Cloud Run watches Artifact Registry or
-deploys automatically when the `latest` tag moves; Phase 10 owns that delivery
+deploys automatically when the `latest` tag moves; Phase 9 owns that delivery
 automation.
 
 ## Runtime verification

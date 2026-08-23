@@ -38,7 +38,7 @@ Out of scope:
 
 - CI gate: the CI workflow must complete with a `success` status on the main branch before this phase is considered complete.
 - Security: no secrets, credentials, or sensitive configuration files must be present in the repository at this stage, since no real GCP integration is expected yet.
-- Observability: not applicable at this stage; introduced starting from Phase 12.
+- Observability: not applicable at this stage; introduced starting from Phase 11.
 
 ## 5. Acceptance criteria
 

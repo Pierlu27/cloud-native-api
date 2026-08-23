@@ -19,8 +19,8 @@ Out of scope:
 
 - Cloud SQL integration (deferred because it is not zero-cost)
 - Terraform-managed provisioning of Cloud Run (Phase 8 formalizes this as IaC; this phase can use manual/CLI setup)
-- CI/CD automation of the deployment step itself (Phase 10 wires this into the pipeline)
-- multi-environment separation (Phase 11)
+- CI/CD automation of the deployment step itself (Phase 9 wires this into the pipeline)
+- multi-environment separation (Phase 10)
 
 ## 3. Functional requirements
 
@@ -33,9 +33,9 @@ Out of scope:
 
 ## 4. Non-functional requirements
 
-- CI gate: not applicable directly in this phase; deployment is performed manually/via CLI for now and automated in Phase 10.
+- CI gate: not applicable directly in this phase; deployment is performed manually/via CLI for now and automated in Phase 9.
 - Security: the Cloud Run service must not expose any unnecessary ports or services; only the application's HTTP(S) port should be reachable.
-- Observability: basic Cloud Run request/latency metrics must be visible in the GCP console after deployment, even though full monitoring setup is deferred to Phase 12.
+- Observability: basic Cloud Run request/latency metrics must be visible in the GCP console after deployment, even though full monitoring setup is deferred to Phase 11.
 
 ## 5. Acceptance criteria
 
@@ -50,7 +50,7 @@ Out of scope:
 ## 6. Deliverables
 
 - code: no application code changes expected in this phase
-- workflow: none in this phase (manual/CLI deployment; automation comes in Phase 10)
+- workflow: none in this phase (manual/CLI deployment; automation comes in Phase 9)
 - documentation: updated `docs/deployment.md` describing Cloud Run service configuration and how to deploy manually
 
 ## 7. Evidence
@@ -84,7 +84,7 @@ Completion record updated on 2026-08-21:
 - risk: misconfigured environment variables on Cloud Run could cause the application to fail to start, with unclear error messages.
   mitigation: verify environment variable configuration against the working local Docker Compose setup from Phase 2 before deploying.
 - risk: an overly permissive autoscaling configuration could lead to unexpected costs.
-  mitigation: set conservative min/max instance limits appropriate for a demo workload, revisited in Phase 13 (Cost & Resource Management).
+  mitigation: set conservative min/max instance limits appropriate for a demo workload, revisited in Phase 12 (Cost & Resource Management).
 - risk: the health check misconfigured could cause Cloud Run to mark healthy containers as unhealthy, causing repeated restarts.
   mitigation: test the health check endpoint manually before wiring it into Cloud Run's readiness/liveness configuration.
 

@@ -20,7 +20,7 @@ Out of scope:
 - Terraform configuration for Supabase resources (Supabase is managed via its dashboard/API; optional future improvement via the Supabase Terraform provider, but not required for this phase)
 - multi-environment Terraform workspaces (e.g. separate dev/prod state files) — this phase focuses on a single environment
 - advanced Terraform patterns such as modules, remote backends, or policy-as-code (these can be added later if needed)
-- synthetic uptime checks, notification channels, dashboards, service-level objectives, distributed tracing, and advanced application metrics (deferred to the full observability work in Phase 12)
+- synthetic uptime checks, notification channels, dashboards, service-level objectives, distributed tracing, and advanced application metrics (deferred to the full observability work in Phase 11)
 
 ## 3. Functional requirements
 
@@ -112,9 +112,9 @@ Out of scope:
 - risk: using authoritative IAM policy or binding resources could remove principals that are not declared in Terraform and interrupt GitHub publishing or public API access.
   mitigation: prefer additive IAM member resources for the required grants, import each existing grant explicitly, and inspect the IAM-related plan before apply.
 - risk: a periodic uptime check could keep the scale-to-zero Cloud Run service and Supabase Free project active, changing the cost and inactivity behavior accepted in Phase 7.
-  mitigation: use passive log and metric processing in this phase; defer synthetic checks until their traffic and cost implications are evaluated in Phase 12.
+  mitigation: use passive log and metric processing in this phase; defer synthetic checks until their traffic and cost implications are evaluated in Phase 11.
 - risk: an overly sensitive 5xx alert could open incidents for isolated transient errors and create noise.
-  mitigation: use a short aggregation window with a documented threshold, keep external notification channels out of scope, and refine alert behavior with real traffic during Phase 12.
+  mitigation: use a short aggregation window with a documented threshold, keep external notification channels out of scope, and refine alert behavior with real traffic during Phase 11.
 - risk: unconstrained or independently selected provider versions could produce different plans on different machines or introduce breaking schema changes.
   mitigation: declare compatible version constraints, commit `.terraform.lock.hcl`, and review provider upgrades explicitly.
 - risk: losing the local Terraform state would remove Terraform's mapping to the imported GCP resources even though the resources would continue running.

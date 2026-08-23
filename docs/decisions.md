@@ -129,4 +129,4 @@ attach a notification channel in this phase.
 a log-based metric, Monitoring, and an alert without generating synthetic
 traffic that might keep Cloud Run or Supabase active. Console-only incidents are
 enough for the short-lived learning environment; notification routing and more
-advanced service-level monitoring remain Phase 12 work.
+advanced service-level monitoring remain Phase 11 work.

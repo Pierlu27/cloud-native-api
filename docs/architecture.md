@@ -80,9 +80,10 @@ The flat root module in `terraform/` manages these GCP resources:
 Terraform reads the existing project metadata but does not create the GCP
 project. It also does not manage secret payload versions, Supabase resources,
 GitHub Actions executions, or image builds. After bootstrapping the Cloud Run
-service, Terraform ignores changes to the selected image and traffic because
-the Phase 9 workflow owns revisions and promotion; probes, scaling, resources,
-runtime identity, secret references, and IAM remain Terraform-owned. Those
+service, Terraform ignores changes to the selected image, explicit revision
+name, known workflow traceability labels, and traffic because the Phase 9
+workflow owns revisions and promotion; probes, scaling, resources, runtime
+identity, secret references, other labels, and IAM remain Terraform-owned. Those
 boundaries keep credentials out of Terraform state and prevent infrastructure
 reconciliation from undoing a successful application deployment.
 

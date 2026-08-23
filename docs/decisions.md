@@ -147,8 +147,10 @@ Terraform owns the service's structural configuration and IAM, including
 scaling, probes, resources, runtime identity, public invocation, and numeric
 Secret Manager references. After the initial bootstrap, the delivery workflow
 owns the selected container image, immutable revisions, temporary candidate
-tags, and traffic allocation. Terraform therefore ignores image and traffic
-changes while continuing to detect drift in the structural fields it owns.
+tags, traceability labels, and traffic allocation. Terraform therefore ignores
+the image, explicit revision name, the known `commit-sha` and `managed-by`
+labels, and traffic while continuing to detect other label drift and drift in
+the structural fields it owns.
 
 Every deploy targets the commit-SHA image, creates a uniquely named candidate
 revision with no production traffic, smoke-tests its tagged URL, and promotes

@@ -125,13 +125,17 @@ resource "google_cloud_run_v2_service" "application" {
   depends_on = [google_secret_manager_secret_iam_member.runtime_accessor]
 
   # Terraform owns the service structure, while the Phase 9 delivery workflow
-  # owns the deployed image and traffic after the initial service creation.
+  # owns the image, revision name, traceability labels, and traffic after the
+  # initial service creation. Other template labels remain drift-detected.
   # Client fields are operational provenance rather than desired configuration.
   lifecycle {
     ignore_changes = [
       client,
       client_version,
       template[0].containers[0].image,
+      template[0].labels["commit-sha"],
+      template[0].labels["managed-by"],
+      template[0].revision,
       traffic,
     ]
   }

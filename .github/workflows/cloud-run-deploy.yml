@@ -192,7 +192,8 @@ jobs:
             --quiet
 
       # Re-read Cloud Run instead of assuming that a successful command alone
-      # proves the intended revision became the production target.
+      # proves the intended revision became the production target. The same
+      # 100% target can still carry the candidate tag until the cleanup step.
       - name: Verify production traffic target
         shell: bash
         env:
@@ -207,7 +208,7 @@ jobs:
                 --region "${REGION}" \
                 --format=json \
                 | jq -r \
-                    '[.status.traffic[] | select((.percent // 0) == 100 and (.tag // "") == "") | (.revisionName // .revision)][0] // empty'
+                    '[.status.traffic[] | select((.percent // 0) == 100) | (.revisionName // .revision)][0] // empty'
             )"
 
             if [[ "${production_revision}" == "${REVISION_NAME}" ]]; then

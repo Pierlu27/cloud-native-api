@@ -68,7 +68,7 @@ Out of scope:
 - [x] after an automated deployment, `terraform plan` does not attempt to restore the previous image or traffic allocation
 - [x] the deployed revision retains the Terraform-managed runtime identity, secret versions, probes, resources, and scaling configuration
 - [x] the full pipeline run, from push to production traffic, is visible end to end in the GitHub Actions run log
-- [ ] a documentation-only pull request runs secret scanning and resolves the required `Build and test` check without running build, dependency scan, static analysis, image, or deployment work
+- [x] a documentation-only pull request runs secret scanning and resolves the required `Build and test` check without running build, dependency scan, static analysis, image, or deployment work
 - [ ] merging that documentation-only pull request does not publish an image or create a Cloud Run revision
 - [x] a mixed documentation-and-code change still executes the complete pipeline
 

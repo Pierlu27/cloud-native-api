@@ -149,11 +149,31 @@ the original target.
 
 ## Documentation-only delivery behavior
 
-This document, its index entry, and the related spec status update form the
-documentation-only change used to verify the lightweight pull-request path.
-The corresponding acceptance criteria remain open until the pull-request checks
-and the post-merge absence of an image build and Cloud Run revision have both
-been observed.
+This document, its index entry, and the related spec status update formed the
+documentation-only change used to verify the lightweight pull-request path in
+[GitHub Actions run 32655487076](https://github.com/Pierlu27/cloud-native-api/actions/runs/32655487076).
+
+The pull-request run completed with:
+
+```text
+Classify changes             SUCCESS
+Secret scan                  SUCCESS
+Build and test               SKIPPED
+Dependency scan              SKIPPED
+Build dependency scan        SKIPPED
+Static analysis              SKIPPED
+Build and publish image      SKIPPED
+Deploy candidate and promote SKIPPED
+```
+
+GitHub reported the pull request as `MERGEABLE` with merge state `CLEAN`.
+Therefore the required `Build and test` check resolved without running the real
+build, while secret scanning remained active and the expensive jobs consumed no
+runner time.
+
+The post-merge acceptance criterion remains open until the documentation-only
+pull request is merged and the absence of a main-branch image build and Cloud
+Run revision is observed.
 
 ## Evidence safety
 

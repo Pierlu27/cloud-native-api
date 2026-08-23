@@ -36,8 +36,8 @@ cloud-native-api/
 - Phase 1: backend API + test
 - Phase 2: Docker + compose
 - Phase 3-4: CI + quality/security gates
-- Phase 5-10: artifact registry + cloud deploy + CD
-- Phase 11-13: environments, observability, cost
+- Phase 5-9: artifact registry + cloud deploy + CD
+- Phase 10-12: environments, observability, cost
 
 ## Local run (current bootstrap state)
 

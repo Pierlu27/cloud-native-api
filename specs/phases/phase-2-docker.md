@@ -21,7 +21,7 @@ Out of scope:
 - CI pipeline changes to build/publish the image (Phase 3/5)
 - pushing the image to Artifact Registry (Phase 5)
 - deployment to Cloud Run (Phase 6)
-- production-specific configuration (Phase 11)
+- production-specific configuration (Phase 10)
 
 ## 3. Functional requirements
 

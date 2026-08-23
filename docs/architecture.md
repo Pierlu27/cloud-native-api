@@ -34,7 +34,7 @@ Public HTTPS ─────────────────────► 
 GitHub Actions builds and publishes images to Artifact Registry. In Phase 8,
 Terraform declares the immutable image consumed by Cloud Run, but Terraform is
 still run manually and does not react to a new image or Git commit. Automated
-deployment of a newly published image remains part of Phase 10.
+deployment of a newly published image remains part of Phase 9.
 
 The publisher service account can write only to the application repository. It
 does not run the application. Cloud Run instead uses a dedicated runtime service
@@ -75,7 +75,7 @@ The flat root module in `terraform/` manages these GCP resources:
 
 Terraform reads the existing project metadata but does not create the GCP
 project. It also does not manage secret payload versions, Supabase resources,
-GitHub Actions executions, image builds, or the Phase 10 deployment workflow.
+GitHub Actions executions, image builds, or the Phase 9 deployment workflow.
 Those boundaries keep credentials out of Terraform state and preserve the
 separation between GCP infrastructure, the external database, and delivery.
 

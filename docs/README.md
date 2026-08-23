@@ -16,6 +16,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `phase-6-verification.md` - historical Cloud Run deployment evidence
 - `phase-7-verification.md` - Supabase Session Pooler and persistence evidence
 - `phase-8-verification.md` - Phase 8 Terraform adoption and runtime evidence
+- `phase-9-verification.md` - Phase 9 continuous delivery, failure-gate, and rollback evidence
 
 ## Evidence organization
 

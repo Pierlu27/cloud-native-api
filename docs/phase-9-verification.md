@@ -171,9 +171,29 @@ Therefore the required `Build and test` check resolved without running the real
 build, while secret scanning remained active and the expensive jobs consumed no
 runner time.
 
-The post-merge acceptance criterion remains open until the documentation-only
-pull request is merged and the absence of a main-branch image build and Cloud
-Run revision is observed.
+Pull request #24 was merged locally with `--no-ff` and pushed to `main` as
+commit:
+
+```text
+e61de89f5b280d2dffe58964c58ee82806f4e191
+```
+
+A workflow query scoped to that exact commit returned an empty result (`[]`),
+demonstrating that the `push` trigger's documentation `paths-ignore` rule did
+not create a main-branch CI run. The post-merge comparison also remained
+unchanged:
+
+```text
+latest created revision: cloud-native-api-sha-e4d5c1c9-run-32654236868
+production revision:     cloud-native-api-sha-e4d5c1c9-run-32653385587 (100%)
+latest registry digest:  sha256:d184c5969ee9144c965ed823e7498f88fcce2a7efc679773287ba3a2c9efd342
+registry update time:    2026-08-23T17:19:02Z
+```
+
+The documentation-only merge therefore published no image and created no
+Cloud Run revision. Pull requests retain lightweight validation and secret
+scanning, while protected-main documentation merges do not repeat work already
+validated by the pull request.
 
 ## Evidence safety
 

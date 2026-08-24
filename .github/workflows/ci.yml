@@ -1,8 +1,8 @@
-# Workflow: validates every change sent to the main branch.
+# Workflow: validates changes targeting the development and production branches.
 name: CI
 
-# Workflow triggers: validate pull requests and deployable main changes; manual
-# runs on main also support the controlled smoke-test failure exercise.
+# Workflow triggers: validate pull requests and deployable changes for both
+# environments; manual runs support the controlled smoke-test failure exercise.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +12,7 @@ on:
         default: false
         type: boolean
   push:
-    branches: [main]
+    branches: [develop, main]
     # A documentation-only merge was already secret-scanned in its pull
     # request and does not produce a different application artifact.
     paths-ignore:
@@ -21,7 +21,7 @@ on:
       - "docs/**"
       - "specs/**"
   pull_request:
-    branches: [main]
+    branches: [develop, main]
 
 # Jobs: first classify the change, then run only the applicable validation gates.
 jobs:
@@ -266,13 +266,13 @@ jobs:
           path: build/reports/checkstyle
           if-no-files-found: warn
 
-  # Image publishing: only main pushes or manual main runs can publish to
-  # Artifact Registry, after every build, test, security, and quality gate.
+  # Image publishing: deployable pushes or manual runs on either environment
+  # branch publish only after every build, test, security, and quality gate.
   image-publish:
     name: Build and publish image
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') &&
       needs.changes.outputs.run_pipeline == 'true'
     needs:
       - changes
@@ -332,7 +332,7 @@ jobs:
       - image-publish
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main'
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
     permissions:
       contents: read
       id-token: write
@@ -342,8 +342,7 @@ jobs:
       region: europe-west8
       repository: cloud-native-api
       image_name: cloud-native-api
-      service: cloud-native-api
-      deployer_service_account: ${{ vars.WIF_DEPLOYER_SERVICE_ACCOUNT }}
+      deployment_environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
       force_smoke_failure: ${{ inputs.force_smoke_failure || false }}
     secrets:
       WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}

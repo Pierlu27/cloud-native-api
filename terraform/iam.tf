@@ -10,6 +10,35 @@ resource "google_service_account" "runtime" {
   description  = "Identity used by the Cloud Run service at runtime."
 }
 
+# Creates one dedicated runtime identity for each Phase 10 environment.
+
+# for_each turns the environment map into two independently addressable
+# service accounts while the unsuffixed runtime remains available to the
+# historical Cloud Run service throughout the migration.
+
+resource "google_service_account" "environment_runtime" {
+  for_each = local.environments
+
+  project      = var.project_id
+  account_id   = each.value.runtime_service_account_id
+  display_name = "Cloud Native API ${each.key} runtime"
+  description  = "Identity used by the ${each.key} Cloud Run service at runtime."
+}
+
+# Creates one GitHub Actions deployment identity for each environment.
+
+# The accounts are intentionally permissionless at creation time. Scoped Cloud
+# Run, runtime-impersonation, registry, and WIF grants are managed separately.
+
+resource "google_service_account" "environment_deployer" {
+  for_each = local.environments
+
+  project      = var.project_id
+  account_id   = each.value.deployer_service_account_id
+  display_name = "GitHub Actions ${each.key} Cloud Run deployer"
+  description  = "Identity impersonated by GitHub Actions to deploy the ${each.key} Cloud Run service."
+}
+
 # Manages the identity impersonated by GitHub Actions to publish images.
 
 # The current project service account is adopted with terraform import. Its
@@ -36,9 +65,9 @@ resource "google_iam_workload_identity_pool" "github_actions" {
 
 # Validates GitHub-issued OIDC tokens and maps their claims to Google attributes.
 
-# The condition restricts federation to this repository's main branch. Passing
-# the provider check still grants no Google Cloud permission by itself; the
-# publisher impersonation binding is managed separately.
+# The environment attribute translates the trusted GitHub refs into stable IAM
+# selector values. The condition admits only main and develop from this repository;
+# branch-scoped service-account bindings keep their permissions separated.
 
 resource "google_iam_workload_identity_pool_provider" "github" {
   project                            = data.google_project.current.number
@@ -49,12 +78,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 
   attribute_mapping = {
     "google.subject"             = "assertion.sub"
+    "attribute.environment"      = "assertion.ref == 'refs/heads/${local.environments.development.github_branch}' ? 'development' : (assertion.ref == 'refs/heads/${local.environments.production.github_branch}' ? 'production' : 'unauthorized')"
     "attribute.repository"       = "assertion.repository"
     "attribute.repository_owner" = "assertion.repository_owner"
     "attribute.ref"              = "assertion.ref"
   }
 
-  attribute_condition = "assertion.repository == '${var.github_repository}' && assertion.ref == 'refs/heads/${var.github_branch}'"
+  attribute_condition = "assertion.repository == '${var.github_repository}' && (assertion.ref == 'refs/heads/${local.environments.development.github_branch}' || assertion.ref == 'refs/heads/${local.environments.production.github_branch}')"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"

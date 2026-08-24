@@ -166,3 +166,54 @@ two tools from repeatedly reverting each other. Candidate validation limits
 the effect of a broken image, while deterministic revision names and workflow
 metadata connect production traffic to the source commit and GitHub Actions
 run without relying on the mutable `LATEST` target.
+
+## ADR-013 Development and production environment separation
+
+**Decision**: extend the Phase 9 delivery model to two logical environments in
+the existing GCP project. The `develop` branch deploys automatically to the
+`development` GitHub Environment and `cloud-native-api-dev`; the `main` branch
+deploys to the `production` GitHub Environment and
+`cloud-native-api-prod` only after a required reviewer approves the job.
+
+Use one shared Artifact Registry repository and publisher, but create separate
+Cloud Run deployer and runtime service accounts for each environment. WIF admits
+only this repository's `develop` and `main` refs and maps their environment
+attribute to separate service-account impersonation bindings. Each runtime can
+read only its own three Secret Manager containers. GitHub Environments contain
+only the non-sensitive service name and deployer email; database URL, username,
+and password payloads remain exclusively in Google Secret Manager.
+
+Use two Supabase projects rather than two schemas in one database: the existing
+application project is production and the second Free Plan project is
+development. Keep one GCP project instead of creating a project per environment
+at this stage. Service names, identities, and secrets use explicit `-dev` and
+`-prod` naming so that the environment remains visible in consoles, logs, IAM,
+and Terraform plans.
+
+Pin URL, username, and password secret versions independently for each
+environment. A secret rotation remains an explicit Terraform operation that
+creates a new Cloud Run revision; publishing a new image does not advance a
+secret version automatically.
+
+Retain the historical `cloud-native-api` service temporarily as a rollback
+target. This is a staged replacement, not an in-place rename. Retire it only
+after the new production pipeline, service, and database path are verified and
+the rollback window has ended. Before removing its Terraform blocks, consolidate
+all still-valid comments into the corresponding environment-aware resources;
+shared publisher, registry, API, logging, and monitoring resources remain.
+
+**Reason**: separate services and databases prevent development changes and
+test data from affecting the production runtime while preserving the project's
+low-cost learning constraints. Environment-scoped deployers, runtimes, secrets,
+WIF bindings, and GitHub protection rules form complementary boundaries: a
+workflow configuration error alone should not authorize cross-environment
+deployment or secret access. A single GCP project provides less isolation than
+separate projects, but avoids duplicated project-level setup and cost at the
+current scale. The retained historical service provides a known rollback path
+during migration instead of turning the new production URL into an irreversible
+cutover.
+
+This ADR extends ADR-012. Its separation between publisher, deployer, runtime,
+Terraform ownership, and workflow-owned delivery state remains valid; those
+roles are now applied independently to development and production where
+appropriate.

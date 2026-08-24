@@ -70,6 +70,9 @@ jobs:
 
       # The suffix makes the revision name predictable. The run ID prevents
       # two manual runs of the same commit from requesting the same name.
+      # The temporary tag deliberately omits the run ID because Cloud Run
+      # limits the combined service-name and traffic-tag length to 46 chars.
+      # Per-environment concurrency makes reusing the short-lived tag safe.
       - name: Define candidate metadata
         id: candidate
         shell: bash
@@ -82,7 +85,7 @@ jobs:
           echo "image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "revision_suffix=${revision_suffix}" >> "${GITHUB_OUTPUT}"
           echo "revision_name=${SERVICE}-${revision_suffix}" >> "${GITHUB_OUTPUT}"
-          echo "tag=candidate-${short_sha}-${GITHUB_RUN_ID}" >> "${GITHUB_OUTPUT}"
+          echo "tag=candidate-${short_sha}" >> "${GITHUB_OUTPUT}"
 
       # no_traffic keeps the environment on the previous revision. The temporary
       # tag creates a dedicated route to this candidate for the smoke tests.

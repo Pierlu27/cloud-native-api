@@ -46,11 +46,11 @@ Out of scope:
 ## 5. Acceptance criteria
 
 - [ ] two Cloud Run services exist and are independently deployable (`cloud-native-api-dev`, `cloud-native-api-prod`), and the historical unsuffixed service is retired only after production verification
-- [ ] pushing to `develop` triggers an automatic deployment to the development Cloud Run service, with no manual approval required
-- [ ] merging to `main` triggers a deployment to the production Cloud Run service that pauses for manual approval before running
-- [ ] development and production point to two distinct Supabase projects, verified by writing a test record in development and confirming it does not appear in production
-- [ ] environment secrets and deployment identities are scoped correctly: development cannot read production Secret Manager payloads or impersonate the production deployer
-- [ ] both Cloud Run services and both Supabase projects are clearly named/labeled to avoid confusion between environments
+- [x] pushing to `develop` triggers an automatic deployment to the development Cloud Run service, with no manual approval required
+- [x] merging to `main` triggers a deployment to the production Cloud Run service that pauses for manual approval before running
+- [x] development and production point to two distinct Supabase projects, verified by writing a test record in development and confirming it does not appear in production
+- [x] environment secrets and deployment identities are scoped correctly: development cannot read production Secret Manager payloads or impersonate the production deployer
+- [x] both Cloud Run services and both Supabase projects are clearly named/labeled to avoid confusion between environments
 - [ ] each environment can advance one database secret version without changing the other two numeric references
 
 ## 6. Deliverables
@@ -112,7 +112,12 @@ Implemented and locally validated:
 
 Still requiring end-to-end evidence:
 
+- consumer cutover, rollback-window completion, comment consolidation, and reviewed retirement of the historical service and its legacy IAM/identities
+
+Verified end to end on 2026-08-24 and recorded in
+`docs/phase-10-verification.md`:
+
 - pull-request CI and automatic deployment after merging the feature branch into `develop`
 - development smoke tests and proof of data isolation from production
 - pull-request CI, production approval pause, deployment, and smoke tests after promotion to `main`
-- consumer cutover, rollback-window completion, comment consolidation, and reviewed retirement of the historical service and its legacy IAM/identities
+- Secret Manager runtime boundaries and branch-scoped deployer impersonation for both environments

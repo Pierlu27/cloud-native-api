@@ -19,7 +19,7 @@ variable "region" {
 }
 
 variable "service_name" {
-  description = "Base application name used by the historical service and to derive environment-specific resource names."
+  description = "Base application name used to derive shared and environment-specific resource names."
   type        = string
 
   validation {
@@ -38,17 +38,6 @@ variable "repository_name" {
   }
 }
 
-variable "runtime_service_account_id" {
-  description = "Account ID of the dedicated Cloud Run runtime service account."
-  type        = string
-  default     = "cloud-native-api-runtime"
-
-  validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.runtime_service_account_id))
-    error_message = "runtime_service_account_id must be 6-30 characters, start with a lowercase letter, end with a lowercase letter or digit, and contain only lowercase letters, digits, or hyphens."
-  }
-}
-
 variable "publisher_service_account_id" {
   description = "Account ID of the service account impersonated by GitHub Actions to publish images."
   type        = string
@@ -57,17 +46,6 @@ variable "publisher_service_account_id" {
   validation {
     condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.publisher_service_account_id))
     error_message = "publisher_service_account_id must be 6-30 characters, start with a lowercase letter, end with a lowercase letter or digit, and contain only lowercase letters, digits, or hyphens."
-  }
-}
-
-variable "deployer_service_account_id" {
-  description = "Account ID of the service account impersonated by GitHub Actions to deploy Cloud Run revisions."
-  type        = string
-  default     = "github-cloud-run-deployer"
-
-  validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.deployer_service_account_id))
-    error_message = "deployer_service_account_id must be 6-30 characters, start with a lowercase letter, end with a lowercase letter or digit, and contain only lowercase letters, digits, or hyphens."
   }
 }
 
@@ -111,17 +89,6 @@ variable "github_repository" {
   validation {
     condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
     error_message = "github_repository must use the owner/repository format."
-  }
-}
-
-variable "github_branch" {
-  description = "GitHub branch allowed to federate through the OIDC provider."
-  type        = string
-  default     = "main"
-
-  validation {
-    condition     = length(trimspace(var.github_branch)) > 0 && !can(regex("\\s", var.github_branch))
-    error_message = "github_branch must be non-empty and contain no whitespace."
   }
 }
 

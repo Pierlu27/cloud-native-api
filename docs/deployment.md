@@ -56,10 +56,10 @@ through `WIF_PROVIDER`. Database URLs, usernames, and passwords are not
 duplicated in GitHub: they remain exclusively in three environment-specific
 Secret Manager containers per environment.
 
-The historical unsuffixed `cloud-native-api` service remains available only as
-a temporary rollback target while the new production path is being verified.
-It is not a third logical environment and must be retired through the reviewed
-migration procedure documented below.
+The historical unsuffixed `cloud-native-api` service was retained temporarily
+as a rollback target while the new production path was verified. It was not a
+third logical environment and was retired through the reviewed migration
+procedure documented below on 2026-08-24.
 
 ### Identity and configuration boundaries
 
@@ -155,9 +155,7 @@ terraform output environment_runtime_service_account_emails
 
 `environment_cloud_run_service_urls` is a map keyed by `development` and
 `production`; use the matching URL to verify
-`/actuator/health/readiness` after that environment has been deployed. The
-singular `cloud_run_service_url` output refers to the historical service and is
-retained only during the migration window.
+`/actuator/health/readiness` after that environment has been deployed.
 
 ## Staged bootstrap for an existing service
 
@@ -194,11 +192,17 @@ avoid a PowerShell text pipeline that silently appends a newline or changes the
 encoding; use an exact-byte file or another input method that preserves the
 payload. Confirm the new version is enabled without displaying its contents.
 
-The historical Cloud Run service references version `2` of:
+Before its retirement, the historical Cloud Run service referenced version `2`
+of:
 
 - `cloud-native-api-database-url`
 - `cloud-native-api-database-username`
 - `cloud-native-api-database-password`
+
+Those three historical containers and their versions were deliberately deleted
+with the retired service after the final deletion plan was reviewed. They are
+listed here only to preserve the migration record and must not be recreated for
+the current two-environment topology.
 
 The Phase 10 services initially reference version `1` of their six separate
 containers:
@@ -455,23 +459,24 @@ application. Docker does not create them. An HTTP probe verifies the expected
 application health response, whereas a TCP probe would only prove that a process
 accepts connections on the port.
 
-The historical service remains in Terraform during the migration window. Its
-resources are deliberately kept separate from the environment `for_each`
-resources so that a reviewed retirement produces an explicit deletion plan
-rather than disguising the migration as a rename or state move.
+During the migration window, the historical service remained in separate
+Terraform resources so that retirement produced an explicit deletion plan
+rather than disguising the migration as a rename or state move. After the new
+production path was verified, those historical resources were removed and the
+final plan converged with only the two environment `for_each` instances.
 
 ## Shared environment observability
 
 Cloud Run emits request logs automatically. The project retains one shared
 log-based 5xx counter and one Monitoring alert policy rather than duplicating
-them for each environment. The metric filter admits the historical,
-development, and production service names; the service label in matching log
-entries still identifies the source environment.
+them for each environment. The metric filter admits the development and
+production service names; the service label in matching log entries still
+identifies the source environment.
 
 ```text
 Cloud Run request
   -> Logging API stores the request log
-  -> the log-based metric filter selects HTTP 5xx entries for the three services
+  -> the log-based metric filter selects HTTP 5xx entries for the two services
   -> Monitoring receives increments for the custom counter
   -> the alert policy evaluates the five-minute sum
   -> a value above zero for 60 seconds opens an incident
@@ -588,3 +593,10 @@ Retire the historical service only after that window:
 5. Review the complete Terraform deletion plan before applying it. After the
    controlled removal, verify both environment services again and require a
    final `terraform plan` to report `No changes`.
+
+This procedure was completed on 2026-08-24. The saved plan reported `0` to add,
+`1` to change, and `14` to destroy. The change narrowed the shared 5xx filter
+to the final dev/prod names; the removals covered only the classified legacy
+service, secrets, identities, and IAM. The exact plan applied successfully,
+both remaining services passed readiness and database-backed HTTP checks, and
+the following fresh Terraform plan reported `No changes`.

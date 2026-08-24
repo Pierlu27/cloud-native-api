@@ -195,7 +195,7 @@ resource "google_cloud_run_v2_service" "environment" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.environment["${each.key}.database_url"].secret_id
-            version = each.value.database_secret_version
+            version = each.value.database_secret_versions.database_url
           }
         }
       }
@@ -206,7 +206,7 @@ resource "google_cloud_run_v2_service" "environment" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.environment["${each.key}.database_username"].secret_id
-            version = each.value.database_secret_version
+            version = each.value.database_secret_versions.database_username
           }
         }
       }
@@ -217,7 +217,7 @@ resource "google_cloud_run_v2_service" "environment" {
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.environment["${each.key}.database_password"].secret_id
-            version = each.value.database_secret_version
+            version = each.value.database_secret_versions.database_password
           }
         }
       }

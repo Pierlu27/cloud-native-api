@@ -23,21 +23,33 @@ locals {
   # itself. Resources opt into this model explicitly through for_each.
   environments = {
     development = {
-      github_branch                 = "develop"
-      service_name                  = "${var.service_name}-dev"
-      runtime_service_account_id    = "${var.service_name}-dev-runtime"
-      deployer_service_account_id   = "github-cloud-run-dev-deployer"
-      database_secret_version       = "1"
+      github_branch               = "develop"
+      service_name                = "${var.service_name}-dev"
+      runtime_service_account_id  = "${var.service_name}-dev-runtime"
+      deployer_service_account_id = "github-cloud-run-dev-deployer"
+      # Keep the version of each secret independent so that rotating one value
+      # does not require creating matching versions for the other two secrets.
+      database_secret_versions = {
+        database_url      = "1"
+        database_username = "1"
+        database_password = "1"
+      }
       secret_deletion_protection    = false
       cloud_run_deletion_protection = false
     }
 
     production = {
-      github_branch                 = "main"
-      service_name                  = "${var.service_name}-prod"
-      runtime_service_account_id    = "${var.service_name}-prod-runtime"
-      deployer_service_account_id   = "github-cloud-run-prod-deployer"
-      database_secret_version       = "1"
+      github_branch               = "main"
+      service_name                = "${var.service_name}-prod"
+      runtime_service_account_id  = "${var.service_name}-prod-runtime"
+      deployer_service_account_id = "github-cloud-run-prod-deployer"
+      # Keep the version of each secret independent so that rotating one value
+      # does not require creating matching versions for the other two secrets.
+      database_secret_versions = {
+        database_url      = "1"
+        database_username = "1"
+        database_password = "1"
+      }
       secret_deletion_protection    = true
       cloud_run_deletion_protection = true
     }

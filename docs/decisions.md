@@ -213,6 +213,14 @@ current scale. The retained historical service provides a known rollback path
 during migration instead of turning the new production URL into an irreversible
 cutover.
 
+**Migration outcome (2026-08-24)**: after automatic development delivery,
+approval-gated production delivery, database isolation, secret/IAM boundaries,
+and both service endpoints were verified, the rollback window was closed. The
+historical service, its dedicated identities and IAM, and its three legacy
+secret containers were removed through an explicitly reviewed Terraform plan.
+Shared registry, publisher, WIF, APIs, logging, and Monitoring resources were
+retained, and the resulting Terraform plan was a no-op.
+
 This ADR extends ADR-012. Its separation between publisher, deployer, runtime,
 Terraform ownership, and workflow-owned delivery state remains valid; those
 roles are now applied independently to development and production where

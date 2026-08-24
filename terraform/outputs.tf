@@ -1,10 +1,3 @@
-# Exposes the public HTTPS endpoint assigned to the Cloud Run service.
-
-output "cloud_run_service_url" {
-  description = "Public HTTPS URL of the Cloud Run application service."
-  value       = google_cloud_run_v2_service.application.uri
-}
-
 # Exposes the provider-assigned Artifact Registry repository resource name.
 
 output "artifact_registry_repository_name" {
@@ -12,14 +5,7 @@ output "artifact_registry_repository_name" {
   value       = google_artifact_registry_repository.application.name
 }
 
-# Exposes the identity that the Phase 9 GitHub Actions deployment job impersonates.
-
-output "deployer_service_account_email" {
-  description = "Email of the dedicated GitHub Actions Cloud Run deployer."
-  value       = google_service_account.deployer.email
-}
-
-# Exposes the public endpoint assigned to each Phase 10 Cloud Run service.
+# Exposes the public endpoint assigned to each Cloud Run environment service.
 
 output "environment_cloud_run_service_urls" {
   description = "Public Cloud Run service URL keyed by environment."

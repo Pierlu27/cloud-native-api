@@ -1,20 +1,8 @@
-# Creates the dedicated service account used by Cloud Run at runtime.
+# Creates one dedicated Cloud Run runtime identity for each environment.
 
-# Cloud Run will use this dedicated runtime identity instead of the default
-# Compute Engine service account, keeping application permissions isolated.
-
-resource "google_service_account" "runtime" {
-  project      = var.project_id
-  account_id   = var.runtime_service_account_id
-  display_name = "Cloud Native API runtime"
-  description  = "Identity used by the Cloud Run service at runtime."
-}
-
-# Creates one dedicated runtime identity for each Phase 10 environment.
-
-# for_each turns the environment map into two independently addressable
-# service accounts while the unsuffixed runtime remains available to the
-# historical Cloud Run service throughout the migration.
+# for_each turns the environment model into independently addressable service
+# accounts. Cloud Run uses these identities instead of the default Compute
+# Engine account, isolating application permissions between dev and prod.
 
 resource "google_service_account" "environment_runtime" {
   for_each = local.environments

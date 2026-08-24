@@ -6,14 +6,14 @@
 resource "google_logging_metric" "cloud_run_http_5xx" {
   project     = var.project_id
   name        = "${var.service_name}-http-5xx"
-  description = "Counts HTTP 5xx responses from the ${var.service_name} Cloud Run service."
+  description = "Counts HTTP 5xx responses from the historical, development, and production Cloud Run services."
   disabled    = false
 
   # Construct the multiline filter with explicit LF separators so that
   # Windows CRLF checkout settings do not create perpetual Terraform drift.
   filter = format("%s\n", join("\n", [
     "resource.type=\"cloud_run_revision\" AND",
-    "resource.labels.service_name=\"${var.service_name}\" AND",
+    "resource.labels.service_name=~\"^${var.service_name}(-dev|-prod)?$\" AND",
     "log_id(\"run.googleapis.com/requests\") AND",
     "httpRequest.status>=500 AND",
     "httpRequest.status<600",
@@ -42,7 +42,7 @@ resource "google_monitoring_alert_policy" "cloud_run_http_5xx" {
   enabled      = true
 
   documentation {
-    content   = "The ${var.service_name} Cloud Run service returned at least one HTTP 5xx response. Review the Cloud Run request and application logs."
+    content   = "A Cloud Native API Cloud Run service returned at least one HTTP 5xx response. Use the service_name resource label to identify the affected environment, then review its request and application logs."
     mime_type = "text/markdown"
   }
 

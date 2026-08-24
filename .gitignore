@@ -25,7 +25,7 @@ Thumbs.db
 # Secrets / local env
 .env
 .env.*
-cloud-run-env.yaml
+cloud-run-env*.yaml
 *.pem
 *.key
 *.p12

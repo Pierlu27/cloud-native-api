@@ -18,3 +18,33 @@ output "deployer_service_account_email" {
   description = "Email of the dedicated GitHub Actions Cloud Run deployer."
   value       = google_service_account.deployer.email
 }
+
+# Exposes the public endpoint assigned to each Phase 10 Cloud Run service.
+
+output "environment_cloud_run_service_urls" {
+  description = "Public Cloud Run service URL keyed by environment."
+  value = {
+    for environment_name, service in google_cloud_run_v2_service.environment :
+    environment_name => service.uri
+  }
+}
+
+# Exposes the revision currently reported as ready for each environment.
+
+output "environment_cloud_run_latest_ready_revisions" {
+  description = "Latest ready Cloud Run revision name keyed by environment."
+  value = {
+    for environment_name, service in google_cloud_run_v2_service.environment :
+    environment_name => service.latest_ready_revision
+  }
+}
+
+# Exposes the runtime identity assigned to each environment service.
+
+output "environment_runtime_service_account_emails" {
+  description = "Cloud Run runtime service account email keyed by environment."
+  value = {
+    for environment_name, runtime in google_service_account.environment_runtime :
+    environment_name => runtime.email
+  }
+}

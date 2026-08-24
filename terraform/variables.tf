@@ -19,7 +19,7 @@ variable "region" {
 }
 
 variable "service_name" {
-  description = "Cloud Run service name."
+  description = "Base application name used by the historical service and to derive environment-specific resource names."
   type        = string
 
   validation {

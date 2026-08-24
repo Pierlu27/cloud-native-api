@@ -20,12 +20,8 @@ on:
         description: Container image name
         required: true
         type: string
-      service:
-        description: Cloud Run service name
-        required: true
-        type: string
-      deployer_service_account:
-        description: Service account impersonated by the delivery workflow
+      deployment_environment:
+        description: GitHub Environment that supplies the deployment target and protection rules
         required: true
         type: string
       force_smoke_failure:
@@ -40,10 +36,11 @@ on:
 
 jobs:
   deploy:
-    name: Deploy candidate and promote
+    name: Deploy candidate and promote (${{ inputs.deployment_environment }})
     runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
     concurrency:
-      group: cloud-native-api-production
+      group: cloud-native-api-${{ inputs.deployment_environment }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -54,7 +51,7 @@ jobs:
       REGION: ${{ inputs.region }}
       REPOSITORY: ${{ inputs.repository }}
       IMAGE_NAME: ${{ inputs.image_name }}
-      SERVICE: ${{ inputs.service }}
+      SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
 
     steps:
       - name: Checkout
@@ -66,13 +63,16 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ inputs.deployer_service_account }}
+          service_account: ${{ vars.WIF_DEPLOYER_SERVICE_ACCOUNT }}
 
       - name: Set up Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v3
 
       # The suffix makes the revision name predictable. The run ID prevents
       # two manual runs of the same commit from requesting the same name.
+      # The temporary tag deliberately omits the run ID because Cloud Run
+      # limits the combined service-name and traffic-tag length to 46 chars.
+      # Per-environment concurrency makes reusing the short-lived tag safe.
       - name: Define candidate metadata
         id: candidate
         shell: bash
@@ -85,11 +85,11 @@ jobs:
           echo "image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
           echo "revision_suffix=${revision_suffix}" >> "${GITHUB_OUTPUT}"
           echo "revision_name=${SERVICE}-${revision_suffix}" >> "${GITHUB_OUTPUT}"
-          echo "tag=candidate-${short_sha}-${GITHUB_RUN_ID}" >> "${GITHUB_OUTPUT}"
+          echo "tag=candidate-${short_sha}" >> "${GITHUB_OUTPUT}"
 
-      # no_traffic keeps production on the previous revision. The temporary
+      # no_traffic keeps the environment on the previous revision. The temporary
       # tag creates a dedicated route to this candidate for the smoke tests.
-      - name: Deploy candidate revision without production traffic
+      - name: Deploy candidate revision without serving traffic
         id: deploy_candidate
         uses: google-github-actions/deploy-cloudrun@v3
         with:
@@ -181,7 +181,7 @@ jobs:
 
       # Promotion targets the deterministic revision name tested above; it
       # never relies on LATEST, which could point at another concurrent deploy.
-      - name: Promote tested revision to production
+      - name: Promote tested revision
         env:
           REVISION_NAME: ${{ steps.candidate.outputs.revision_name }}
         run: |
@@ -192,9 +192,9 @@ jobs:
             --quiet
 
       # Re-read Cloud Run instead of assuming that a successful command alone
-      # proves the intended revision became the production target. The same
+      # proves the intended revision became the environment target. The same
       # 100% target can still carry the candidate tag until the cleanup step.
-      - name: Verify production traffic target
+      - name: Verify serving traffic target
         shell: bash
         env:
           REVISION_NAME: ${{ steps.candidate.outputs.revision_name }}
@@ -202,7 +202,7 @@ jobs:
           set -euo pipefail
 
           for attempt in {1..6}; do
-            production_revision="$(
+            serving_revision="$(
               gcloud run services describe "${SERVICE}" \
                 --project "${PROJECT_ID}" \
                 --region "${REGION}" \
@@ -211,16 +211,16 @@ jobs:
                     '[.status.traffic[] | select((.percent // 0) == 100) | (.revisionName // .revision)][0] // empty'
             )"
 
-            if [[ "${production_revision}" == "${REVISION_NAME}" ]]; then
-              echo "Revision ${REVISION_NAME} is serving 100% of production traffic."
+            if [[ "${serving_revision}" == "${REVISION_NAME}" ]]; then
+              echo "Revision ${REVISION_NAME} is serving 100% of ${SERVICE} traffic."
               exit 0
             fi
 
-            echo "Attempt ${attempt}/6: production still reports '${production_revision:-no revision}'."
+            echo "Attempt ${attempt}/6: ${SERVICE} still reports '${serving_revision:-no revision}'."
             sleep 5
           done
 
-          echo "::error::Revision ${REVISION_NAME} was not observed at 100% production traffic."
+          echo "::error::Revision ${REVISION_NAME} was not observed at 100% of ${SERVICE} traffic."
           exit 1
 
       # always() also runs this step after a smoke-test failure. Removing the

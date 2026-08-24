@@ -7,7 +7,19 @@ useDefault = true
 # must name the finding, link to its review, and have an expiry date in the issue
 # or pull request that approved it. Never allowlist an entire rule or directory.
 #
-# [[allowlists]]
+# [[rules]]
+# id = "<rule-id>"
+# [[rules.allowlists]]
 # description = "False positive: <reason>; review: <issue-or-PR>; expires: <YYYY-MM-DD>"
 # regexTarget = "match"
 # regexes = [ '''<exact-reviewed-value>''' ]
+
+[[rules]]
+id = "hashicorp-tf-password"
+
+[[rules.allowlists]]
+description = "False positive: Secret Manager container suffix, not a payload; review: PR #26; expires: 2027-08-24"
+condition = "AND"
+regexTarget = "line"
+paths = [ '''^terraform/main\.tf$''' ]
+regexes = [ '''^\s*database_password\s*=\s*"database-password"\s*$''' ]

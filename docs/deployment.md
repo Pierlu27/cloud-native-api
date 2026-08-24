@@ -400,8 +400,11 @@ The reusable workflow performs this sequence:
    is never a deployment target.
 3. Calculate a unique revision name
    `<environment-service>-sha-<short-sha>-run-<run-id>` and temporary tag
-   `candidate-<short-sha>-<run-id>`. The run ID prevents two executions of the
-   same commit from requesting the same revision name.
+   `candidate-<short-sha>`. The run ID prevents two executions of the same
+   commit from requesting the same revision name. It is intentionally omitted
+   from the tag because Cloud Run limits the combined service-name and traffic-
+   tag length to 46 characters. Per-environment concurrency serializes tag use,
+   and the cleanup step removes the tag after each candidate attempt.
 4. Deploy the candidate with `no_traffic: true`. That environment's normal
    service URL still routes 100% to its previous stable revision, while the tag
    creates a dedicated URL for the candidate. Because invocation is public at

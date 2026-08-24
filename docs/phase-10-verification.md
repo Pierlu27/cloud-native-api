@@ -72,8 +72,10 @@ GET cloud-native-api-prod/.../19d06577-8b39-4fea-bde8-c0ccee4bed27 -> HTTP 404
 The production error explicitly reported that the UUID was not found. This is
 runtime evidence that the two applications query separate Supabase databases,
 not merely that their Cloud Run templates reference differently named secrets.
-The non-sensitive test record is retained temporarily in development until the
-Phase 10 evidence change is reviewed.
+After recording the isolation result, the synthetic record was deleted from
+development (`DELETE` returned HTTP 204). A final read returned HTTP 404 in
+both development and production, so the evidence exercise left no test data
+behind.
 
 ## Secret access boundaries
 
@@ -118,18 +120,41 @@ The Workload Identity Provider maps `refs/heads/develop` to `development` and
 a member of the principal set allowed to impersonate the production deployer,
 and the inverse is also true.
 
-## Remaining Phase 10 work
+## Legacy retirement and final convergence
 
-The historical unsuffixed `cloud-native-api` service remains available as the
-planned rollback fallback. Phase 10 is not complete until its rollback window
-is explicitly closed, still-useful Terraform comments are consolidated into
-the environment-aware resources, the retirement plan is reviewed and applied,
-and the resulting Terraform plan is a no-op.
+After both environment delivery paths were verified, the rollback window for
+the historical unsuffixed service was explicitly closed. The Terraform
+resources were classified before removal so that the shared Artifact Registry,
+publisher, project APIs, WIF pool/provider, logging metric, and Monitoring alert
+remained managed.
+
+Still-valid explanations were consolidated onto the environment-aware
+resources. The reviewed saved plan reported:
+
+```text
+Plan: 0 to add, 1 to change, 14 to destroy.
+```
+
+The 14 removals were limited to the historical Cloud Run service, its public
+and deployer IAM grants, the historical runtime and deployer identities and
+their bindings, and the three historical Secret Manager containers (including
+their versions). The one change narrowed the shared 5xx metric filter to the
+two final environment services. Applying that exact saved plan completed with:
+
+```text
+Apply complete! Resources: 0 added, 1 changed, 14 destroyed.
+```
+
+The saved binary plan was then deleted. A fresh `terraform plan` reported
+`No changes`, and direct GCP listing showed only `cloud-native-api-dev` and
+`cloud-native-api-prod`, their six environment-specific secret containers, and
+their dedicated runtime/deployer identities. Readiness and the database-backed
+`/api/jobs` endpoint returned HTTP 200 for both services after retirement.
 
 ## Evidence safety
 
 This evidence contains no database URL, username, password, secret payload,
-OIDC token, generated credential file, Terraform state, saved plan, or local
+OIDC token, generated credential file, Terraform state, saved binary plan, or local
 `terraform.tfvars` content. Resource identifiers, workflow links, HTTP status
 codes, and IAM member names are intentionally retained because they make the
 environment boundaries reproducible and reviewable.

@@ -45,13 +45,13 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] two Cloud Run services exist and are independently deployable (`cloud-native-api-dev`, `cloud-native-api-prod`), and the historical unsuffixed service is retired only after production verification
+- [x] two Cloud Run services exist and are independently deployable (`cloud-native-api-dev`, `cloud-native-api-prod`), and the historical unsuffixed service is retired only after production verification
 - [x] pushing to `develop` triggers an automatic deployment to the development Cloud Run service, with no manual approval required
 - [x] merging to `main` triggers a deployment to the production Cloud Run service that pauses for manual approval before running
 - [x] development and production point to two distinct Supabase projects, verified by writing a test record in development and confirming it does not appear in production
 - [x] environment secrets and deployment identities are scoped correctly: development cannot read production Secret Manager payloads or impersonate the production deployer
 - [x] both Cloud Run services and both Supabase projects are clearly named/labeled to avoid confusion between environments
-- [ ] each environment can advance one database secret version without changing the other two numeric references
+- [x] each environment can advance one database secret version without changing the other two numeric references
 
 ## 6. Deliverables
 
@@ -90,12 +90,12 @@ as a rule for later phases.
 - risk: one shared secret-version number for URL, username, and password would couple otherwise independent rotations and could make Cloud Run reference versions that do not exist.
   mitigation: keep three numeric version entries per environment, change only the affected entry, review the resulting revision plan, and leave the previous version enabled through the rollback window.
 - risk: deleting the historical Terraform blocks could also discard useful explanations or accidentally include shared infrastructure in the retirement change.
-  mitigation: classify legacy and shared resources first, consolidate still-valid comments into the environment-aware `for_each` resources, remove obsolete or duplicate comments, and review the complete deletion plan before applying it. Historical secrets are evaluated separately and are never implied deletions.
+  mitigation: classify legacy and shared resources first, consolidate still-valid comments into the environment-aware `for_each` resources, remove obsolete or duplicate comments, and review the complete deletion plan before applying it. Historical secrets are evaluated separately and removed only when they are explicit entries in the reviewed plan.
 
 ## 9. Definition of done (phase)
 
-- [ ] implementation complete (two Cloud Run services, two Supabase projects, environment-specific runtime/deployer identities and secrets, branch-based deployment mapping, GitHub Environment protection rules, independent secret-version references, consolidated Terraform comments, and verified retirement of the historical service)
-- [ ] tests pass (deployments to both environments verified working end to end, with production correctly gated behind approval)
+- [x] implementation complete (two Cloud Run services, two Supabase projects, environment-specific runtime/deployer identities and secrets, branch-based deployment mapping, GitHub Environment protection rules, independent secret-version references, consolidated Terraform comments, and verified retirement of the historical service)
+- [x] tests pass (deployments to both environments verified working end to end, with production correctly gated behind approval)
 - [x] documentation updated (`docs/deployment.md` describing the environment separation strategy and branch mapping)
 - [x] decisions recorded (single GCP project, two Supabase projects, explicit environment suffixes, and Secret Manager as the sole database secret store) in `docs/decisions.md` or equivalent
 
@@ -107,12 +107,8 @@ Implemented and locally validated:
 - two Supabase projects and their environment-specific secret payloads, added outside Terraform
 - `develop`/`main` workflow routing, GitHub Environment variables, development branch policy, and the production reviewer gate
 - independently pinned URL, username, and password versions for both environments
-- shared 5xx observability covering the historical, development, and production service names
+- shared 5xx observability covering the development and production service names
 - Terraform formatting and validation, followed by a no-op plan against the applied infrastructure
-
-Still requiring end-to-end evidence:
-
-- consumer cutover, rollback-window completion, comment consolidation, and reviewed retirement of the historical service and its legacy IAM/identities
 
 Verified end to end on 2026-08-24 and recorded in
 `docs/phase-10-verification.md`:
@@ -121,3 +117,6 @@ Verified end to end on 2026-08-24 and recorded in
 - development smoke tests and proof of data isolation from production
 - pull-request CI, production approval pause, deployment, and smoke tests after promotion to `main`
 - Secret Manager runtime boundaries and branch-scoped deployer impersonation for both environments
+- rollback-window completion and reviewed retirement of the historical service,
+  its legacy IAM/identities, and its three legacy secret containers
+- post-retirement HTTP checks for both services and a final no-op Terraform plan

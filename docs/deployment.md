@@ -6,19 +6,82 @@ The repository uses three related but separate processes:
 
 1. GitHub Actions validates the application, publishes an immutable image
    through the publisher identity, and deploys it through the separate deployer
-   identity when a deployable commit reaches `main`.
+   identity for the target environment. A deployable commit on `develop`
+   targets development; one on `main` targets production.
 2. Terraform declares and reconciles the GCP infrastructure and IAM. After the
-   initial Cloud Run bootstrap it deliberately ignores the selected image,
-   explicit revision name, known workflow traceability labels, and traffic,
-   which belong to the delivery workflow.
-3. Cloud Run starts the selected image as the runtime service account, resolves
-   the pinned database secret versions at container startup, and connects to the
-   external Supabase database.
+   initial Cloud Run bootstrap it deliberately ignores each environment's
+   selected image, explicit revision name, known workflow traceability labels,
+   and traffic, which belong to the delivery workflow.
+3. Cloud Run starts each selected image as that environment's runtime service
+   account, resolves its pinned database secret versions at container startup,
+   and connects to the corresponding Supabase database.
 
 Terraform is still executed manually: it does not watch Git commits, start
 GitHub Actions, build images, or run deployments. GitHub Actions does not run
-Terraform in Phase 9 and therefore cannot silently change Terraform-managed
+Terraform in Phase 10 and therefore cannot silently change Terraform-managed
 probes, scaling, resources, runtime identity, or numeric secret references.
+
+## Environment topology and promotion
+
+Phase 10 separates application runtime and data while retaining one GCP project
+and one Artifact Registry repository. The shared project keeps the learning
+environment inexpensive; environment-specific Cloud Run services, identities,
+secrets, and Supabase projects provide the required operational boundary.
+
+| Branch | GitHub Environment | Cloud Run service | Deployment approval | Database |
+| --- | --- | --- | --- | --- |
+| `develop` | `development` | `cloud-native-api-dev` | automatic | dedicated development Supabase project |
+| `main` | `production` | `cloud-native-api-prod` | required reviewer | dedicated production Supabase project |
+
+The intended promotion path is:
+
+```text
+feature branch -> pull request to develop -> automatic development deployment
+               -> verification -> pull request from develop to main
+               -> production approval -> production deployment
+```
+
+Both GitHub Environments expose only non-sensitive deployment metadata:
+
+| GitHub Environment | Variable | Value |
+| --- | --- | --- |
+| `development` | `CLOUD_RUN_SERVICE` | `cloud-native-api-dev` |
+| `development` | `WIF_DEPLOYER_SERVICE_ACCOUNT` | `github-cloud-run-dev-deployer@project-c42baf60-7736-408b-9ff.iam.gserviceaccount.com` |
+| `production` | `CLOUD_RUN_SERVICE` | `cloud-native-api-prod` |
+| `production` | `WIF_DEPLOYER_SERVICE_ACCOUNT` | `github-cloud-run-prod-deployer@project-c42baf60-7736-408b-9ff.iam.gserviceaccount.com` |
+
+The repository-level WIF configuration authenticates the shared image
+publisher through `WIF_SERVICE_ACCOUNT` and identifies the Google WIF provider
+through `WIF_PROVIDER`. Database URLs, usernames, and passwords are not
+duplicated in GitHub: they remain exclusively in three environment-specific
+Secret Manager containers per environment.
+
+The historical unsuffixed `cloud-native-api` service remains available only as
+a temporary rollback target while the new production path is being verified.
+It is not a third logical environment and must be retired through the reviewed
+migration procedure documented below.
+
+### Identity and configuration boundaries
+
+The shared publisher can write immutable images to the one Artifact Registry
+repository but cannot deploy Cloud Run services. Deployment and runtime access
+are then separated per environment:
+
+- the development workflow may impersonate only
+  `github-cloud-run-dev-deployer`; that deployer may update only
+  `cloud-native-api-dev` and attach only the development runtime identity;
+- the production workflow may impersonate only
+  `github-cloud-run-prod-deployer`; that deployer may update only
+  `cloud-native-api-prod` and attach only the production runtime identity;
+- each runtime identity can read only its environment's three database
+  secrets.
+
+The WIF provider admits this repository only from `develop` and `main`. Its
+mapped GitHub Environment attribute is used in the service-account IAM bindings,
+so being authenticated by the provider does not by itself grant permission to
+impersonate both deployers. GitHub's branch policies and production reviewer
+rule provide an additional delivery gate; Google IAM remains the authorization
+boundary even if a workflow is edited incorrectly.
 
 ## Prerequisites
 
@@ -28,7 +91,8 @@ probes, scaling, resources, runtime identity, or numeric secret references.
 - Google Cloud CLI
 - Docker for local image verification
 - the GitHub repository's Workload Identity Federation values
-- a Supabase PostgreSQL project configured separately from Terraform
+- two Supabase PostgreSQL projects, one for development and one for production,
+  configured separately from Terraform
 
 Authenticate the Google provider through Application Default Credentials (ADC):
 
@@ -80,15 +144,20 @@ executes the reviewed differences. The last plan is the convergence check: “No
 changes” means that configuration, state, and remote infrastructure agree at
 that moment.
 
-Use the declared output instead of copying a URL from the console:
+Use the environment outputs instead of copying URLs or revision names from the
+console:
 
 ```bash
-SERVICE_URL="$(terraform output -raw cloud_run_service_url)"
-curl "$SERVICE_URL/actuator/health/readiness"
+terraform output environment_cloud_run_service_urls
+terraform output environment_cloud_run_latest_ready_revisions
+terraform output environment_runtime_service_account_emails
 ```
 
-The current Phase 8 output resolves to the public Cloud Run service, whose
-readiness endpoint returned HTTP 200 after the final no-op plan.
+`environment_cloud_run_service_urls` is a map keyed by `development` and
+`production`; use the matching URL to verify
+`/actuator/health/readiness` after that environment has been deployed. The
+singular `cloud_run_service_url` output refers to the historical service and is
+retained only during the migration window.
 
 ## Staged bootstrap for an existing service
 
@@ -125,15 +194,22 @@ avoid a PowerShell text pipeline that silently appends a newline or changes the
 encoding; use an exact-byte file or another input method that preserves the
 payload. Confirm the new version is enabled without displaying its contents.
 
-Cloud Run currently references version `2` of:
+The historical Cloud Run service references version `2` of:
 
 - `cloud-native-api-database-url`
 - `cloud-native-api-database-username`
 - `cloud-native-api-database-password`
 
-The runtime service account receives `roles/secretmanager.secretAccessor` on
-each of these secrets individually. It does not receive project-wide secret
-access or Artifact Registry writer permissions.
+The Phase 10 services initially reference version `1` of their six separate
+containers:
+
+- `cloud-native-api-dev-database-url`, `-username`, and `-password`;
+- `cloud-native-api-prod-database-url`, `-username`, and `-password`.
+
+The development and production runtime service accounts receive
+`roles/secretmanager.secretAccessor` only on their own three secrets. Neither
+runtime receives project-wide secret access, access to the other environment's
+secrets, or Artifact Registry writer permissions.
 
 ### Secret resolution and rotation
 
@@ -145,13 +221,27 @@ Cloud Run resolves a secret-backed environment variable when an instance starts
 and passes that value to the container process. It does not refresh an already
 running process when the Secret Manager payload changes. Google therefore
 recommends pinning environment-variable secrets to a numeric version instead of
-`latest`; the current Terraform configuration pins version `2`.
+`latest`; every service in this configuration uses explicit numeric versions.
 
 This has two practical consequences:
 
 - an existing instance continues using the value loaded at its startup;
-- a new instance of the same revision also reads version `2`, even if version
-  `3` has since been added to Secret Manager.
+- a new instance of the same revision also reads the version recorded in that
+  revision, even if a later version has since been added to Secret Manager.
+
+Each environment keeps the three version numbers independent in
+`local.environments`:
+
+```hcl
+database_secret_versions = {
+  database_url      = "1"
+  database_username = "1"
+  database_password = "1"
+}
+```
+
+This prevents a password-only rotation from requiring duplicate URL and
+username versions merely to make their numbers match.
 
 Rotate one of the application secrets with this procedure:
 
@@ -159,14 +249,17 @@ Rotate one of the application secrets with this procedure:
    the value.
 2. Confirm that the new version is enabled and that the matching external
    system change, such as a database credential rotation, is ready.
-3. Change only the affected `version` reference in `terraform/cloud-run.tf`
-   from the previous number to the new number.
+3. Change only the affected entry under `database_secret_versions` for the
+   target environment in `terraform/main.tf`. The references in
+   `terraform/cloud-run.tf` resolve the corresponding URL, username, or
+   password entry.
 4. Review `terraform plan`. The plan must contain no payload and must preserve
    the image, runtime identity, probes, scaling, and public IAM configuration.
 5. Run `terraform apply`. Updating the service template creates a new Cloud Run
    revision; Terraform does not rebuild or republish the image.
-6. Wait for the new revision to become ready, then verify the readiness endpoint
-   and a database-backed API operation through `cloud_run_service_url`.
+6. Wait for the new revision to become ready, then select the target URL from
+   `environment_cloud_run_service_urls` and verify the readiness endpoint plus
+   a database-backed API operation.
 7. Confirm that the latest ready revision receives 100 percent of traffic and
    that the final Terraform plan is empty.
 8. Keep the previous secret version enabled for the agreed rollback window.
@@ -183,9 +276,9 @@ applications designed to reread files during rotation. This application expects
 Spring datasource environment variables, so changing to volume mounts would be
 an application and architecture change, not merely a Terraform syntax change.
 
-Phase 9 automates deployment of newly published container images, but an image
-deployment and a secret rotation remain independent events. The delivery
-pipeline does not replace a pinned secret version or resolve `latest`.
+The delivery workflow automates deployment of newly published container images,
+but an image deployment and a secret rotation remain independent events. The
+delivery pipeline does not replace a pinned secret version or resolve `latest`.
 Until a dedicated rotation workflow is designed, changing the numeric version
 remains an explicit, reviewed Terraform change. A future workflow may accept the
 new version as an approved parameter and automate the plan, new revision,
@@ -260,12 +353,14 @@ Terraform resources does not disable shared project APIs.
 
 ## Artifact Registry publishing
 
-The `image-publish` GitHub Actions job runs for deployable pushes to `main`, or
-for an explicitly requested manual main-branch exercise, after the build, test,
-dependency, secret, and static-analysis jobs succeed. A documentation-only
-merge is excluded before a workflow run is created. The job exchanges a GitHub
-OIDC token through Workload Identity Federation and impersonates the dedicated
-publisher service account; no long-lived JSON key is stored in GitHub.
+The `image-publish` GitHub Actions job runs for deployable pushes or manual runs
+on `develop` and `main`, after the build, test, dependency, secret, and
+static-analysis jobs succeed. A documentation-only push is excluded before a
+workflow run is created; a documentation-only pull request retains the change
+classification and secret-scan checks without rebuilding an unchanged image.
+The publisher job exchanges a GitHub OIDC token through Workload Identity
+Federation and impersonates the shared publisher service account; no long-lived
+JSON key is stored in GitHub.
 
 The publisher has `roles/artifactregistry.writer` only on the
 `cloud-native-api` repository. Each image receives its immutable commit SHA and
@@ -283,8 +378,19 @@ change classification, quality gates, image publication, and the dependency
 between publication and deployment. After `image-publish` succeeds, it calls
 the reusable `.github/workflows/cloud-run-deploy.yml` workflow. `workflow_call`
 means that the second file cannot deploy independently; it receives its GCP
-resource names, deployer identity, WIF provider, and optional controlled-failure
-input from the caller.
+resource names, selected GitHub Environment, WIF provider, and optional
+controlled-failure input from the caller.
+
+The caller maps `develop` to `development` and `main` to `production`. The
+reusable deployment job declares that selected GitHub Environment through its
+`environment:` key, then reads `CLOUD_RUN_SERVICE` and
+`WIF_DEPLOYER_SERVICE_ACCOUNT` from the matching environment variables. The
+development job starts without an approval gate. The production job must wait
+for its configured reviewer, and administrators cannot bypass that rule.
+
+Deployments are serialized independently per GitHub Environment. A running
+development deployment does not block production, while two deployments to the
+same environment cannot promote competing candidates concurrently.
 
 The reusable workflow performs this sequence:
 
@@ -293,13 +399,13 @@ The reusable workflow performs this sequence:
 2. Select the image tagged with the full `GITHUB_SHA`; the mutable `latest` tag
    is never a deployment target.
 3. Calculate a unique revision name
-   `cloud-native-api-sha-<short-sha>-run-<run-id>` and temporary tag
+   `<environment-service>-sha-<short-sha>-run-<run-id>` and temporary tag
    `candidate-<short-sha>-<run-id>`. The run ID prevents two executions of the
    same commit from requesting the same revision name.
-4. Deploy the candidate with `no_traffic: true`. The normal service URL still
-   routes 100% to the previous stable revision, while the tag creates a
-   dedicated URL for the candidate. Because invocation is public at service
-   level, the tagged URL is also reachable until the tag is removed.
+4. Deploy the candidate with `no_traffic: true`. That environment's normal
+   service URL still routes 100% to its previous stable revision, while the tag
+   creates a dedicated URL for the candidate. Because invocation is public at
+   service level, the tagged URL is also reachable until the tag is removed.
 5. Resolve that URL from Cloud Run's traffic status and smoke-test
    `/actuator/health/readiness` plus the read-only `/api/jobs` database path.
    `curl` uses finite timeouts and retries so cold start is tolerated without
@@ -319,18 +425,20 @@ the full commit SHA, immutable image reference, revision name, candidate tag,
 and GitHub Actions run URL.
 
 The manual `workflow_dispatch` input `force_smoke_failure` supports a controlled
-failure exercise. When set to `true`, the workflow first calls the real smoke
-test endpoints and then deliberately exits with an error. The promotion step is
-skipped, normal traffic stays on the previous revision, and the `always()`
-cleanup step removes the temporary tag. This option is for acceptance testing,
-not normal deployment.
+failure exercise on `develop` or `main`. When set to `true`, the workflow first
+calls the real smoke-test endpoints and then deliberately exits with an error.
+The promotion step is skipped, that environment's normal traffic stays on the
+previous revision, and the `always()` cleanup step removes the temporary tag.
+This option is for acceptance testing, not normal deployment.
 
 ## Current Cloud Run configuration
 
-Phase 8 adopted the existing service and created baseline revision
-`cloud-native-api-00006-9pd` while migrating the datasource values to Secret
-Manager references. Phase 9 creates subsequent immutable revisions without
-replacing the following Terraform-managed settings:
+Phase 8 adopted the historical service and created baseline revision
+`cloud-native-api-00006-9pd` while migrating its datasource values to Secret
+Manager references. Phase 10 provisions `cloud-native-api-dev` and
+`cloud-native-api-prod` with the same Terraform-managed operational baseline,
+but with separate runtime identities and separate numeric secret references.
+The delivery workflow creates subsequent immutable revisions without replacing:
 
 - the runtime service account and numeric Secret Manager references
 - public invocation through the additive `allUsers` invoker member
@@ -344,17 +452,53 @@ application. Docker does not create them. An HTTP probe verifies the expected
 application health response, whereas a TCP probe would only prove that a process
 accepts connections on the port.
 
+The historical service remains in Terraform during the migration window. Its
+resources are deliberately kept separate from the environment `for_each`
+resources so that a reviewed retirement produces an explicit deletion plan
+rather than disguising the migration as a rename or state move.
+
+## Shared environment observability
+
+Cloud Run emits request logs automatically. The project retains one shared
+log-based 5xx counter and one Monitoring alert policy rather than duplicating
+them for each environment. The metric filter admits the historical,
+development, and production service names; the service label in matching log
+entries still identifies the source environment.
+
+```text
+Cloud Run request
+  -> Logging API stores the request log
+  -> the log-based metric filter selects HTTP 5xx entries for the three services
+  -> Monitoring receives increments for the custom counter
+  -> the alert policy evaluates the five-minute sum
+  -> a value above zero for 60 seconds opens an incident
+```
+
+Logging is the source of the events, the filter decides which events count,
+the log-based metric converts matching events into numeric time-series data,
+and Monitoring evaluates that data. The shared alert controls cost and
+configuration duplication for this learning project; when investigating an
+incident, inspect the originating Cloud Run service before deciding whether
+development or production is affected.
+
 ## Manual Cloud Run rollback
 
 Cloud Run retains earlier immutable revisions and Artifact Registry retains the
 corresponding commit-SHA images. A rollback does not rebuild or redeploy the old
 image: it moves normal service traffic back to an already existing revision.
 
-1. List the available revisions and identify a previously verified revision:
+Set the target explicitly before issuing any rollback command:
+
+```bash
+TARGET_SERVICE="cloud-native-api-dev" # or cloud-native-api-prod
+```
+
+1. List the target environment's revisions and identify a previously verified
+   revision:
 
    ```bash
    gcloud run revisions list \
-     --service cloud-native-api \
+     --service "${TARGET_SERVICE}" \
      --region europe-west8 \
      --project project-c42baf60-7736-408b-9ff
    ```
@@ -369,7 +513,7 @@ image: it moves normal service traffic back to an already existing revision.
    ```bash
    PREVIOUS_REVISION="replace-with-reviewed-revision-name"
 
-   gcloud run services update-traffic cloud-native-api \
+   gcloud run services update-traffic "${TARGET_SERVICE}" \
      --region europe-west8 \
      --project project-c42baf60-7736-408b-9ff \
      --to-revisions "${PREVIOUS_REVISION}=100"
@@ -379,13 +523,13 @@ image: it moves normal service traffic back to an already existing revision.
    read endpoint:
 
    ```bash
-   gcloud run services describe cloud-native-api \
+   gcloud run services describe "${TARGET_SERVICE}" \
      --region europe-west8 \
      --project project-c42baf60-7736-408b-9ff \
      --format="yaml(status.traffic)"
 
    SERVICE_URL="$(
-     gcloud run services describe cloud-native-api \
+     gcloud run services describe "${TARGET_SERVICE}" \
        --region europe-west8 \
        --project project-c42baf60-7736-408b-9ff \
        --format="value(status.url)"
@@ -399,3 +543,45 @@ Terraform ignores the workflow-owned image, revision metadata, and traffic
 changes, so a later plan must not attempt to undo this rollback. The next
 successful application deploy will create and validate a new revision before
 moving traffic forward again.
+
+## Phase 10 acceptance and staged legacy retirement
+
+The configuration alone does not prove that the new delivery path works. Close
+the phase through the real branch flow:
+
+1. Open a pull request from the feature branch to `develop` and require the CI
+   gates to pass. Pull-request validation does not deploy.
+2. Merge into `develop`. Confirm that the automatic deployment uses the
+   `development` GitHub Environment, the development deployer, and
+   `cloud-native-api-dev`; verify readiness and a database-backed API request.
+3. Create a uniquely identifiable test record through the development API and
+   confirm through the existing application read path that it is absent from
+   production. Do not inspect or copy database credentials as evidence.
+4. Open a pull request from `develop` to `main` and require the same CI gates to
+   pass. Merge it, confirm that the production deployment pauses for its
+   required reviewer, then approve it.
+5. Verify the promoted `cloud-native-api-prod` revision, readiness, the
+   database-backed smoke test, serving traffic, and run summary. Record the
+   sanitized GitHub Actions run links as textual evidence.
+6. Move any consumer still using the historical URL to the verified production
+   URL, then retain the historical service for the agreed rollback window.
+
+Retire the historical service only after that window:
+
+1. Classify every legacy Terraform block as historical or shared. Artifact
+   Registry, the publisher, project APIs, logging metric, and alert policy are
+   shared and must not be removed with the service.
+2. Before deleting legacy blocks, transfer every still-valid explanatory
+   comment to the corresponding environment-aware `for_each` resource. Merge
+   duplicated comments into one clear explanation and remove comments that
+   describe only obsolete behavior.
+3. Remove the historical Cloud Run service, its public/deployer IAM members,
+   and legacy runtime/deployer identities only when their remaining references
+   have been checked. Confirm or deliberately disable deletion protection in a
+   separate reviewed change if it is enabled.
+4. Evaluate the three historical Secret Manager containers independently.
+   Their retirement is not implied by deleting Cloud Run, and no payload or
+   previous version should be deleted automatically.
+5. Review the complete Terraform deletion plan before applying it. After the
+   controlled removal, verify both environment services again and require a
+   final `terraform plan` to report `No changes`.

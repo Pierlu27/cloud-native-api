@@ -6,14 +6,14 @@
 resource "google_logging_metric" "cloud_run_http_5xx" {
   project     = var.project_id
   name        = "${var.service_name}-http-5xx"
-  description = "Counts HTTP 5xx responses from the historical, development, and production Cloud Run services."
+  description = "Counts HTTP 5xx responses from the development and production Cloud Run services."
   disabled    = false
 
   # Construct the multiline filter with explicit LF separators so that
   # Windows CRLF checkout settings do not create perpetual Terraform drift.
   filter = format("%s\n", join("\n", [
     "resource.type=\"cloud_run_revision\" AND",
-    "resource.labels.service_name=~\"^${var.service_name}(-dev|-prod)?$\" AND",
+    "resource.labels.service_name=~\"^${var.service_name}-(dev|prod)$\" AND",
     "log_id(\"run.googleapis.com/requests\") AND",
     "httpRequest.status>=500 AND",
     "httpRequest.status<600",

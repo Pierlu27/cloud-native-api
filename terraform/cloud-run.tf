@@ -80,6 +80,18 @@ resource "google_cloud_run_v2_service" "environment" {
         }
       }
 
+      # Materialize the temporary fault-injection switch only in development
+      # and only while explicitly requested. With the default false value the
+      # environment variable is absent from both Cloud Run service templates.
+      dynamic "env" {
+        for_each = each.key == "development" && var.enable_development_test_error ? [true] : []
+
+        content {
+          name  = "OBSERVABILITY_TEST_ERROR_ENABLED"
+          value = "true"
+        }
+      }
+
       startup_probe {
         initial_delay_seconds = 0
         period_seconds        = 10

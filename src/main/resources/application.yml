@@ -19,6 +19,22 @@ spring:
 server:
   forward-headers-strategy: framework
 
+logging:
+  # Keep Hibernate connection warnings and errors while preventing its INFO
+  # startup summary from writing the complete JDBC URL to application logs.
+  level:
+    org.hibernate.orm.connections.pooling: WARN
+
+  # Emit one portable Logstash JSON object per stdout line. Cloud Run promotes
+  # the renamed top-level severity member and keeps the remaining fields
+  # searchable in jsonPayload; Spring Boot adds MDC values when present.
+  structured:
+    format:
+      console: logstash
+    json:
+      rename:
+        level: severity
+
 management:
   endpoints:
     web:
@@ -28,3 +44,9 @@ management:
     health:
       probes:
         enabled: true
+
+      # Keep Cloud Run's lifecycle probes focused on the container while
+      # exposing a separate endpoint that also verifies the database.
+      group:
+        external:
+          include: readinessState,db

@@ -225,3 +225,43 @@ This ADR extends ADR-012. Its separation between publisher, deployer, runtime,
 Terraform ownership, and workflow-owned delivery state remains valid; those
 roles are now applied independently to development and production where
 appropriate.
+
+## ADR-014 Portable structured logging and basic service observability
+
+**Decision**: use Spring Boot's native Logstash JSON console format, renamed at
+the schema boundary so `level` becomes the Cloud Logging-recognized top-level
+`severity`. Keep the application provider-neutral: write to stdout and let Cloud
+Run ingest the entries instead of adding a Google-specific logging appender.
+Use one highest-precedence servlet filter to validate or generate
+`X-Request-ID`, own the request MDC lifecycle, and emit the final status and
+duration. Suppress only successful internal lifecycle-probe completion logs.
+
+Keep Cloud Run's startup, readiness, and liveness probe paths unchanged. Add a
+separate public Actuator `external` health group containing `readinessState` and
+`db`, and monitor only production every 15 minutes. Add one shared dev/prod
+dashboard, a low-cardinality application-ERROR log metric, and a native Cloud
+Run 5xx/total-request error-rate alert grouped by `service_name`. Preserve the
+Phase 8 count metric and alert unchanged. Route only the new error-rate alert to
+a Terraform-managed email channel.
+
+Distributed tracing remains deferred. Verify the alert path through a
+conditionally registered development-only endpoint, enabled temporarily by a
+Terraform variable that defaults to false and is structurally excluded from
+production.
+
+**Reason**: stdout JSON remains portable across container platforms while
+Cloud Logging can still index severity and request context. MDC makes context
+available throughout one servlet request without contaminating reused worker
+threads. Separating dependency-aware external health from lifecycle probes
+prevents a Supabase outage from causing restart loops. Native request metrics
+represent a true error rate, while the custom log metric intentionally measures
+application ERROR events. Grouping by service preserves environment isolation
+without duplicating dashboards and policies. A 20% threshold over five-minute
+windows, sustained for 60 seconds, is understandable for a low-traffic learning
+service and treats missing scale-to-zero traffic as inactive. The restricted
+fault endpoint provides real evidence without deliberately failing production.
+
+The trade-offs are explicit: the public uptime check can wake a scaled-to-zero
+instance; the email address remains in Terraform state despite being sensitive;
+and without distributed tracing, cross-dependency latency diagnosis relies on
+request IDs, logs, and aggregate metrics.

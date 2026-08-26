@@ -1,5 +1,5 @@
 # Workflow: validates changes targeting the development and production branches.
-name: CI
+name: CI/CD
 
 # Workflow triggers: validate pull requests and deployable changes for both
 # environments; manual runs support the controlled smoke-test failure exercise.

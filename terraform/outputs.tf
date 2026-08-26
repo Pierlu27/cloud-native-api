@@ -34,3 +34,10 @@ output "environment_runtime_service_account_emails" {
     environment_name => runtime.email
   }
 }
+
+# Exposes whether Google Monitoring considers the alert email channel usable.
+
+output "alert_notification_channel_verification_status" {
+  description = "Verification status reported for the Cloud Monitoring email notification channel."
+  value       = google_monitoring_notification_channel.alert_email.verification_status
+}

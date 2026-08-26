@@ -11,7 +11,7 @@ Developer machine
 The local stack remains independent from the managed cloud database. Local
 credentials belong in ignored environment files and are not Terraform inputs.
 
-## Cloud architecture after Phase 9
+## Cloud architecture after Phase 11
 
 ```text
 GitHub Actions
@@ -24,12 +24,12 @@ Workload Identity Federation
    └─► deployer service account ─────► Cloud Run control plane
           service-scoped update          │ candidate, smoke test, traffic
                                          ▼
-Public HTTPS ─────────────────────► active Cloud Run revision
-                                         │ runs as runtime service account
-                            ┌────────────┴─────────────┐
-                            ▼                          ▼
-                     Secret Manager          Supabase Session Pooler
-                     database references     PostgreSQL over TLS
+Public HTTPS ────────────────► dev/prod Cloud Run revisions
+                                       │ run as separate runtime identities
+                          ┌────────────┴─────────────┐
+                          ▼                          ▼
+                   Secret Manager          separate Supabase projects
+                   environment secrets     PostgreSQL over TLS
 ```
 
 GitHub Actions builds and publishes each image to Artifact Registry, then the
@@ -48,22 +48,35 @@ is responsible for retrieving the container image.
 ## Observability flow
 
 ```text
-HTTP request
-   ↓ Cloud Run serves the request and writes a request log
-Cloud Logging
-   ↓ the log-based metric filter selects only this service's HTTP 5xx entries
-cloud-native-api-http-5xx metric
-   ↓ Cloud Monitoring sums the counter over a five-minute window
-Cloud Run HTTP 5xx detected alert policy
-   ↓ a value above zero for 60 seconds can open an incident
-Monitoring incident (Google Cloud console only)
+Client request ──► Cloud Run ──► request filter/MDC ──► application
+       │                              │                      │
+       │                              └─ request context     └─ health + DB
+       ▼
+Cloud Run request metrics             structured JSON to stdout
+       │                                      │
+       └──────────────────┬───────────────────┘
+                          ▼
+              Cloud Logging / Monitoring
+                 │        │         │
+                 ▼        ▼         ▼
+              metrics  dashboard  alert policies ──► email channel
+
+Google uptime check ── every 15 min ──► prod /actuator/health/external
 ```
 
-Cloud Run request logs and built-in metrics are collected automatically by GCP.
-The custom metric is passive: it transforms existing 5xx request logs into a
-counter and does not send requests to the application. Phase 8 creates neither
-an uptime check nor a notification channel, so it cannot keep the scale-to-zero
-service active and sends no email or SMS.
+Cloud Run collects request logs and platform metrics automatically. Spring emits
+portable Logstash JSON to stdout; Cloud Logging recognizes its top-level
+`severity` and keeps the remaining fields searchable. The request filter uses
+MDC to add one request identifier, method, and path to all logs written while a
+request is processed, then removes that context before the worker thread is
+reused.
+
+The Phase 8 5xx counter and console-only count alert remain unchanged. Phase 11
+adds an application-ERROR counter, a native 5xx/total-request ratio, a shared
+dev/prod dashboard, an email-backed error-rate alert, and one production uptime
+check. Unlike passive metrics, the uptime check sends a real request and can
+wake a service that has scaled to zero. See `observability.md` for the complete
+signal flow and operating guide.
 
 ## Terraform management boundary
 
@@ -75,7 +88,9 @@ The flat root module in `terraform/` manages these GCP resources:
 - Workload Identity Federation pool, provider, and both impersonation grants
 - Secret Manager containers and secret-scoped runtime access
 - Cloud Run service and public invoker grant
-- passive 5xx log-based metric and Monitoring alert policy
+- preserved Phase 8 5xx log-based metric and count alert policy
+- Phase 11 application-error metric, native error-rate alert, email channel,
+  production uptime check, and shared observability dashboard
 
 Terraform reads the existing project metadata but does not create the GCP
 project. It also does not manage secret payload versions, Supabase resources,
@@ -84,6 +99,8 @@ service, Terraform ignores changes to the selected image, explicit revision
 name, known workflow traceability labels, and traffic because the Phase 9
 workflow owns revisions and promotion; probes, scaling, resources, runtime
 identity, secret references, other labels, and IAM remain Terraform-owned. Those
-boundaries keep credentials out of Terraform state and prevent infrastructure
-reconciliation from undoing a successful application deployment.
+boundaries keep database payloads out of Terraform state and prevent
+infrastructure reconciliation from undoing a successful application deployment.
+The notification address is the exception: it is a sensitive Terraform input
+and therefore remains in state even though it is absent from tracked files.
 

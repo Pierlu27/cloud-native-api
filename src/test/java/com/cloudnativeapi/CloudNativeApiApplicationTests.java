@@ -12,6 +12,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,6 +40,15 @@ class CloudNativeApiApplicationTests {
 
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void disabledTestErrorEndpointReturnsNotFound() throws Exception {
+		mockMvc.perform(post("/internal/observability/test-error"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.status").value(404))
+			.andExpect(jsonPath("$.message").value("Resource not found"))
+			.andExpect(jsonPath("$.path").value("/internal/observability/test-error"));
 	}
 
 	@Test

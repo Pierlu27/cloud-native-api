@@ -137,7 +137,7 @@ Out of scope:
   and its database connection are working, and returns an unhealthy status in
   a controlled simulation when the database is unreachable, without changing
   the Cloud Run startup/readiness/liveness probe behavior
-- [ ] a production-only uptime check calls `/actuator/health/external` every 15
+- [x] a production-only uptime check calls `/actuator/health/external` every 15
   minutes and reports the endpoint as available in Cloud Monitoring
 - [x] one Terraform-managed dashboard compares `dev` and `prod` by
   `service_name` and shows request count, latency p50/p95, native 5xx error
@@ -159,7 +159,7 @@ Out of scope:
 - [x] the email address is absent from tracked files, the Terraform-managed
   channel is usable rather than `UNVERIFIED`, and it is referenced only by the
   new error-rate policy
-- [ ] the fault-injection endpoint is absent by default and in production,
+- [x] the fault-injection endpoint is absent by default and in production,
   becomes reachable only in a specifically enabled development revision,
   exercises the normal global exception handler, and is disabled again through
   a reviewed Terraform plan and apply after the alert test
@@ -182,7 +182,7 @@ Out of scope:
 ## 7. Evidence
 
 - sample structured log entries (raw JSON) exported from Cloud Logging, showing recognized `severity` and contextual fields
-- `gcloud logging read` output filtering log entries by a structured field (e.g. `jsonPayload.status="500"`)
+- `gcloud logging read` output filtering log entries by a structured field (e.g. `jsonPayload.http_status=500`)
 - `gcloud monitoring` or Cloud Monitoring API output confirming request count, latency, error rate, CPU, and memory metrics exist for the Cloud Run service
 - `/actuator/health/external` response body for a healthy deployed environment
   and for a locally controlled unavailable-database simulation, plus evidence
@@ -285,10 +285,14 @@ health returned HTTP 200/`UP`, the fault endpoint returned the expected HTTP
 `No changes`. A review of 133 recent application entries found no configured
 sensitive-data indicators.
 
-Still pending before the phase can be closed completely:
-
-- promote the Phase 11 application image to `main`/production;
-- verify production `/actuator/health/external` and wait for the production-only
-  uptime check to report success; and
-- confirm the fault endpoint remains absent from the promoted production
-  revision without generating a deliberate production 5xx.
+Production runtime verification also completed on 2026-08-26. Pull request
+`#34` merged Phase 11 into `main` at commit
+`47c136fb45fd5625f5a1f95e7f46710855d1eeec`. Because no automatic push run
+appeared for that merge, the complete production workflow was manually
+dispatched for the same commit. Run `32977172126` passed every gate, deployed
+and smoke-tested a no-traffic candidate, and promoted revision
+`cloud-native-api-prod-sha-47c136fb-run-32977172126` to 100 percent traffic
+after environment approval. Production external health returned HTTP 200/`UP`,
+the disabled fault endpoint returned HTTP 404 without producing a production
+5xx, and the production-only Oregon uptime checker reported
+`check_passed=true` at `2026-08-26T14:07:00Z`. Phase 11 is complete.

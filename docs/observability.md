@@ -152,7 +152,9 @@ Two different alerts coexist:
 The 60-second duration does not mean that one HTTP response remains "500" for a
 minute. Monitoring repeatedly evaluates a time-series condition; the calculated
 error rate must remain in violation for 60 seconds before the incident opens.
-Incidents automatically close after 30 minutes without matching data.
+An incident can close sooner when new data shows the condition is healthy again;
+the configured 30-minute auto-close covers the separate case where matching
+data stops arriving.
 
 The notification address is required through the ignored local
 `terraform.tfvars`. Terraform marks it sensitive to reduce accidental CLI
@@ -171,12 +173,31 @@ Run template. Production can never receive the variable through this resource.
 Changing the variable creates a new Cloud Run revision because environment
 variables are part of a revision's immutable template.
 
+There is an additional operational consequence of the Phase 9 ownership split.
+The workflow gives every application revision an explicit name, while Terraform
+normally ignores that workflow-owned field. After refresh, however, the Google
+provider still knows the current explicit name. If a later Terraform operation
+changes the structural template, the provider can attempt to create the changed
+template under that same name; Cloud Run rejects this with HTTP 409 because
+revisions are immutable.
+
+For a manual structural exercise such as this controlled test, temporarily use
+a new unique development revision name and keep production at its current name,
+then remove `template[0].revision` from `ignore_changes` only for the reviewed
+operation. The plan must change development alone. Use a second unique name for
+the disabled cleanup revision. These runtime-specific names remain uncommitted;
+after cleanup, remove the override, restore the lifecycle ignore rule, refresh
+the asynchronous latest-ready output if necessary, and require a final no-op
+plan. This does not transfer long-term revision ownership to Terraform: it is a
+bounded workaround for a manually applied structural change.
+
 The end-to-end test is performed only after the Phase 11 image has reached
 development:
 
 1. confirm the endpoint is absent from the current disabled development
    revision;
-2. enable the Terraform variable, review the plan, and apply it;
+2. prepare the unique uncommitted revision-name override, enable the Terraform
+   variable, review that the plan changes only development, and apply it;
 3. route a temporary Cloud Run tag to the new enabled revision without moving
    normal development traffic;
 4. call the tagged endpoint and retain its HTTP 500 response and
@@ -184,12 +205,25 @@ development:
 5. correlate that ID with the structured ERROR log, application-error metric,
    native error rate, Monitoring incident, and email notification;
 6. remove the temporary tag;
-7. set the variable back to `false`, review and apply Terraform again, and
-   confirm the endpoint is absent from the clean revision.
+7. select another unique development revision name, set the variable back to
+   `false`, review and apply Terraform again, and confirm the endpoint is absent
+   from the clean revision;
+8. remove the validation tag and temporary name override, restore revision-name
+   ignoring, refresh state-only computed outputs when required, and confirm a
+   normal `terraform plan` reports `No changes`.
 
 A traffic rollback can immediately isolate the test revision, but it does not
 replace the final disabled Terraform apply. The declared service template must
 also return to its safe default.
+
+The development exercise completed on 2026-08-26. One controlled HTTP 500
+produced one native 5xx request, one preserved Phase 8 5xx event, and two
+application `ERROR` entries sharing the returned request ID. Both alert policies
+opened incidents, the greater-than-20% error-rate notification email arrived,
+and the incidents closed after the signal returned healthy. The clean revision
+then returned HTTP 200/`UP` for external health and HTTP 404 for the disabled
+fault endpoint. All temporary tags were removed and Terraform converged to a
+no-op plan.
 
 ## Usage and cost boundary
 

@@ -101,3 +101,20 @@ variable "image_tag" {
     error_message = "image_tag must be a full 40-character lowercase Git commit SHA; latest is not allowed."
   }
 }
+
+variable "alert_notification_email" {
+  description = "Email address that receives Cloud Monitoring alert notifications; stored in local tfvars and Terraform state."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_notification_email))
+    error_message = "alert_notification_email must be a valid email address."
+  }
+}
+
+variable "enable_development_test_error" {
+  description = "Temporarily registers the controlled observability error endpoint in development only."
+  type        = bool
+  default     = false
+}

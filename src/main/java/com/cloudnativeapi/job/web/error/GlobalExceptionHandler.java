@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -24,6 +25,12 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiErrorResponse> handleNotFound(JobNotFoundException exception, HttpServletRequest request) {
 		log.warn("API request failed with 404: method={} path={} message={}", request.getMethod(), request.getRequestURI(), exception.getMessage());
 		return build(HttpStatus.NOT_FOUND, "Job not found: " + exception.getId(), request.getRequestURI(), List.of());
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ApiErrorResponse> handleMissingResource(NoResourceFoundException exception, HttpServletRequest request) {
+		log.warn("API request failed with 404: method={} path={} message={}", request.getMethod(), request.getRequestURI(), exception.getMessage());
+		return build(HttpStatus.NOT_FOUND, "Resource not found", request.getRequestURI(), List.of());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

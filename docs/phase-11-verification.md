@@ -2,11 +2,11 @@
 
 Infrastructure verification date: 2026-08-25.
 Development runtime verification date: 2026-08-26.
+Production runtime verification date: 2026-08-26.
 
-This document separates completed implementation and infrastructure evidence
-from runtime checks that require the Phase 11 application image to be delivered
-to development. Commands and sanitized text results are sufficient evidence;
-Console screenshots are not mandatory.
+This document records the completed implementation, infrastructure, and runtime
+evidence for development and production. Commands and sanitized text results
+are sufficient evidence; Console screenshots are not mandatory.
 
 ## Local application verification
 
@@ -139,14 +139,37 @@ Resource names, statuses, metric values, incident identifiers, and workflow
 links may be recorded, but the email address, Terraform state, saved plans,
 secret values, tokens, and database connection strings must not be included.
 
-## Production runtime evidence pending
+## Production runtime evidence
 
-The current production image predates the new `external` health group. Until
-the Phase 11 application image is promoted to `main`, the uptime check can
-report that path as unavailable. After production delivery, verify a healthy
-public `/actuator/health/external` response, the fault endpoint's safe disabled
-state, and a successful 15-minute uptime-check result. This transitional state
-is not proof of a Phase 11 health failure.
+Pull request `#34` promoted Phase 11 to `main` in merge commit
+`47c136fb45fd5625f5a1f95e7f46710855d1eeec`. No automatic push run appeared
+for that merge, so the complete `CI/CD` workflow was explicitly dispatched for
+the same commit with `force_smoke_failure=false`. Run `32977172126` passed the
+secret, static-analysis, test, application-dependency, and build-dependency
+gates, published the immutable image, deployed a no-traffic candidate, passed
+its smoke test, and promoted it after the protected `production` environment
+was approved.
+
+Cloud Run then reported
+`cloud-native-api-prod-sha-47c136fb-run-32977172126` as both the latest created
+and latest ready revision, with 100 percent of production traffic. Its template
+contained only the three production datasource Secret Manager references; it
+did not contain `OBSERVABILITY_TEST_ERROR_ENABLED`.
+
+The public production URL returned HTTP 200 and `{"status":"UP"}` from
+`/actuator/health/external`. A safe `POST` to
+`/internal/observability/test-error` returned HTTP 404 `Resource not found`,
+confirming that the conditional controller was absent without producing a
+deliberate production 5xx.
+
+The production-only uptime check remained configured with a 900-second period,
+30-second timeout, HTTPS and certificate validation, a 2xx requirement, and
+the JSON assertion `$.status == "UP"`. Historical checker samples remained
+false while production still ran the pre-Phase-11 image. After promotion, the
+Google-managed Oregon checker, selected through the configured `USA` region,
+recorded `check_passed=true` at `2026-08-26T14:07:00Z` for the production host.
+This is the external Monitoring evidence that the deployed health group and
+its database check are reachable outside Cloud Run.
 
 ## Expected usage
 

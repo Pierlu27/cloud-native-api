@@ -1,6 +1,7 @@
 # Phase 11 Observability Verification
 
 Infrastructure verification date: 2026-08-25.
+Development runtime verification date: 2026-08-26.
 
 This document separates completed implementation and infrastructure evidence
 from runtime checks that require the Phase 11 application image to be delivered
@@ -76,33 +77,76 @@ defines only `UNVERIFIED` as requiring verification before a channel can
 function; any other result is assumed usable. No provider verification step is
 therefore required before the controlled notification test.
 
-## Runtime evidence pending delivery
+## Development runtime evidence
+
+The Phase 11 image reached development through the normal delivery workflow.
+The tagged enabled revision
+`cloud-native-api-dev-observability-test-20260826` returned HTTP 200/`UP` from
+`/actuator/health/external` before the controlled error was sent. Normal
+development traffic remained at 100 percent on the preceding disabled stable
+revision throughout the exercise.
+
+One `POST /internal/observability/test-error` returned HTTP 500 with request ID
+`750c47e8-48c1-40a4-be19-14d064a6ff94`. Filtering Cloud Logging by the
+structured `jsonPayload.request_id` field returned two correlated `ERROR`
+entries:
+
+- the global exception-handler entry identified the controlled
+  `IllegalStateException`, method, and path; and
+- the request-completion entry recorded `http_status=500` and
+  `duration_ms=63`.
+
+The Monitoring API reported, for the enabled revision in the corresponding
+minute, one native Cloud Run HTTP 5xx request, one preserved Phase 8 log-based
+HTTP 5xx, and two `Application ERROR log entries`. The two application entries
+are expected because this counter measures log events rather than unique
+requests.
+
+The Phase 8 `Cloud Run HTTP 5xx detected` incident opened at 10:11:28 UTC and
+closed at 10:15:55 UTC. The Phase 11 `Cloud Run HTTP 5xx error rate above 20%`
+incident opened at 10:12:34 UTC and closed at 10:16:45 UTC, grouped under
+`cloud-native-api-dev`; the configured email notification was received. No
+deliberate failing request was sent to production.
+
+After the test, the public tag was removed and a second reviewed Terraform plan
+reported `0` additions, `1` in-place change, and `0` destructions. Applying it
+created `cloud-native-api-dev-observability-clean-20260826` without
+`OBSERVABILITY_TEST_ERROR_ENABLED`. Through a temporary validation tag the
+clean revision returned HTTP 200/`UP` for external health and HTTP 404
+`Resource not found` for the fault endpoint. The validation tag was then
+removed, a refresh-only apply recorded Cloud Run's asynchronous latest-ready
+output, and the final normal plan reported:
+
+```text
+No changes. Your infrastructure matches the configuration.
+```
+
+A review of 133 recent development stdout/stderr entries found zero matches for
+JDBC/PostgreSQL URLs, datasource variable names, serialized username/password
+pairs, authorization or cookie headers, Bearer tokens, query-string fields, or
+request-body fields. The observed structured fields were limited to logging
+metadata plus request ID, method, path, event, status, duration, message, and
+stack trace.
+
+The first enable apply safely failed before changing Cloud Run because the
+provider attempted to reuse the latest workflow-owned explicit revision name.
+Cloud Run revisions are immutable, so the successful enable and cleanup plans
+used separate, unique, uncommitted Terraform revision-name overrides. The
+normal lifecycle ignore rule was restored after cleanup. This operational edge
+case and its safe procedure are now documented in the deployment runbook.
+
+Resource names, statuses, metric values, incident identifiers, and workflow
+links may be recorded, but the email address, Terraform state, saved plans,
+secret values, tokens, and database connection strings must not be included.
+
+## Production runtime evidence pending
 
 The current production image predates the new `external` health group. Until
-the Phase 11 application image is delivered, the newly created uptime check can
-report the path as unavailable. This is expected transitional state, not proof
-of a Phase 11 health failure.
-
-After the branch is merged and the image is deployed to development, record:
-
-1. a healthy public `/actuator/health/external` response and the production
-   uptime check reporting success after production delivery;
-2. a structured completion log whose `severity`, `request_id`, `http_method`,
-   `http_path`, `http_status`, and `duration_ms` fields are searchable;
-3. a manual review confirming that recent entries contain no database URL,
-   credentials, authorization/cookie values, query strings, or bodies;
-4. a development-only controlled HTTP 500 correlated by `X-Request-ID` with its
-   ERROR log and both relevant metrics;
-5. the error-rate incident grouped under `cloud-native-api-dev` and the received
-   email notification; and
-6. removal of the temporary revision tag followed by a reviewed Terraform apply
-   with `enable_development_test_error=false`, proving the endpoint is absent
-   again.
-
-No deliberate failing request is sent to production. Resource names, statuses,
-metric values, incident identifiers, and workflow links may be recorded, but
-the email address, Terraform state, saved plans, secret values, tokens, and
-database connection strings must not be included.
+the Phase 11 application image is promoted to `main`, the uptime check can
+report that path as unavailable. After production delivery, verify a healthy
+public `/actuator/health/external` response, the fault endpoint's safe disabled
+state, and a successful 15-minute uptime-check result. This transitional state
+is not proof of a Phase 11 health failure.
 
 ## Expected usage
 

@@ -21,6 +21,44 @@ GitHub Actions, build images, or run deployments. GitHub Actions does not run
 Terraform in Phase 10 and therefore cannot silently change Terraform-managed
 probes, scaling, resources, runtime identity, or numeric secret references.
 
+### Structural updates after a workflow-named revision
+
+Ignoring the workflow-owned explicit revision name prevents ordinary Terraform
+plans from undoing application delivery, but the provider still refreshes that
+name into state. When Terraform later changes a structural template field such
+as an environment variable, probe, resource limit, runtime identity, or numeric
+secret reference, Cloud Run must create a new immutable revision. The provider
+can otherwise attempt to reuse the refreshed workflow name, and Cloud Run
+rejects the changed configuration with HTTP 409.
+
+For a reviewed manual structural update, use this bounded procedure:
+
+1. Read the current revision names for both services and confirm their traffic.
+2. In an uncommitted local override, assign a new unique revision name to the
+   environment being changed. For the other `for_each` environment, retain its
+   exact current revision name so that the plan does not touch it.
+3. Temporarily remove `template[0].revision` from `ignore_changes`; otherwise
+   Terraform would ignore the unique name required for the operation.
+4. Save and inspect the plan. It must contain the intended environment and
+   structural fields only, with no unexpected production or traffic change.
+5. Apply that exact binary plan and verify the new revision directly. A later
+   cleanup or rollback of the template requires another unique revision name;
+   an existing revision can never be edited in place.
+6. Remove all temporary revision-name overrides, restore
+   `template[0].revision` to `ignore_changes`, and do not commit current remote
+   revision names.
+7. If Cloud Run completed asynchronously after the apply, use a reviewed
+   `terraform plan -refresh-only` and apply it to record computed output changes
+   without modifying remote objects. Finish with a normal plan reporting
+   `No changes`.
+
+The Phase 11 fault-injection exercise exposed and validated this case: the first
+enable apply failed safely with HTTP 409 before changing Cloud Run, while unique
+enabled and clean revision names allowed the two development-only structural
+updates to complete without moving normal traffic. This procedure also applies
+to future explicit secret-version rotations until delivery and infrastructure
+revision creation are redesigned under one owner.
+
 ## Environment topology and promotion
 
 Phase 10 separates application runtime and data while retaining one GCP project

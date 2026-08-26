@@ -131,9 +131,9 @@ Out of scope:
 
 ## 5. Acceptance criteria
 
-- [ ] application logs appear in Cloud Logging as structured JSON, with `severity` correctly recognized (visible as log level in the Cloud Logging Console, not buried in raw text)
-- [ ] a log entry can be filtered in Cloud Logging by a structured field (e.g. `jsonPayload.status="500"`) and this returns the expected results
-- [ ] `/actuator/health/external` returns a healthy status when the application
+- [x] application logs appear in Cloud Logging as structured JSON, with `severity` correctly recognized (visible as log level in the Cloud Logging Console, not buried in raw text)
+- [x] a log entry can be filtered in Cloud Logging by a structured field (e.g. `jsonPayload.http_status=500`) and this returns the expected results
+- [x] `/actuator/health/external` returns a healthy status when the application
   and its database connection are working, and returns an unhealthy status in
   a controlled simulation when the database is unreachable, without changing
   the Cloud Run startup/readiness/liveness probe behavior
@@ -146,14 +146,14 @@ Out of scope:
 - [x] the Phase 8 `cloud_run_http_5xx` metric and its count-based alert remain
   present and retain their original behavior; the new error-rate query uses
   the native `run.googleapis.com/request_count` metric instead
-- [ ] a deliberately triggered error (e.g. an intentionally broken request)
+- [x] a deliberately triggered error (e.g. an intentionally broken request)
   shows up as a structured application error, increments the log-based
   `Application ERROR log entries` counter by one or more matching log events,
   and changes the native Cloud Run HTTP 5xx error rate
-- [ ] the shared 5xx error-rate policy evaluates `dev` and `prod` as separate
+- [x] the shared 5xx error-rate policy evaluates `dev` and `prod` as separate
   `service_name` groups, treats missing traffic as inactive, and fires above
   20% in a five-minute window
-- [ ] a controlled development-only trigger opens an incident and sends a
+- [x] a controlled development-only trigger opens an incident and sends a
   notification to the configured email channel without deliberately producing
   a 5xx response in production
 - [x] the email address is absent from tracked files, the Terraform-managed
@@ -163,7 +163,7 @@ Out of scope:
   becomes reachable only in a specifically enabled development revision,
   exercises the normal global exception handler, and is disabled again through
   a reviewed Terraform plan and apply after the alert test
-- [ ] no sensitive data (credentials, secrets, full connection strings) is found in a manual review of recent log entries
+- [x] no sensitive data (credentials, secrets, full connection strings) is found in a manual review of recent log entries
 
 ## 6. Deliverables
 
@@ -217,6 +217,15 @@ Out of scope:
   make the toggle structurally development-only, use it for one controlled
   request, and require a final disabled Terraform apply. Use traffic rollback
   for immediate containment if needed, then still reconcile the template.
+- risk: after a workflow-named Cloud Run revision has been refreshed into
+  Terraform state, a structural template update can make the provider reuse
+  that immutable revision name and Cloud Run rejects the update with HTTP 409.
+  mitigation: for a reviewed manual structural apply, temporarily provide a
+  new unique development revision name while preserving production's current
+  name, stop ignoring the revision field only for that operation, and inspect
+  that the plan changes development alone. Use another unique name for the
+  cleanup revision, then remove the uncommitted override, restore the normal
+  lifecycle boundary, refresh the state, and require a final no-op plan.
 - risk: marking the notification email variable as sensitive can be mistaken
   for encryption or omission from state.
   mitigation: keep the real value only in ignored local inputs, document that
@@ -257,8 +266,29 @@ Out of scope:
 ## 9. Definition of done (phase)
 
 - [x] implementation complete (structured logging, externally reachable health check, Cloud Monitoring dashboard, at least one alerting policy with a notification channel)
-- [ ] tests pass (a deliberately triggered error is visible in both logs and metrics; the alert fires correctly during a test)
+- [x] tests pass (a deliberately triggered error is visible in both logs and metrics; the alert fires correctly during a test)
 - [x] expected observability usage has been checked against the current Google
   Cloud free allowances, with any recurring or future-cost resources documented
 - [x] documentation updated (logs/metrics/traces explanation and dashboard/alert usage documented)
 - [x] decisions recorded (e.g. logging library choice, alert threshold rationale, decision to defer tracing) in `docs/decisions.md` or equivalent
+
+## 10. Current implementation status
+
+Development runtime verification completed on 2026-08-26. The controlled
+request produced HTTP 500 with a searchable request ID, one native HTTP 5xx,
+one preserved Phase 8 HTTP 5xx, and two application `ERROR` log entries. Both
+the absolute-count and greater-than-20%-rate incidents opened and closed, and
+the configured email notification was received. A second reviewed Terraform
+apply created a clean revision without the enabling variable; its external
+health returned HTTP 200/`UP`, the fault endpoint returned the expected HTTP
+404, all temporary tags were removed, and the final Terraform plan reported
+`No changes`. A review of 133 recent application entries found no configured
+sensitive-data indicators.
+
+Still pending before the phase can be closed completely:
+
+- promote the Phase 11 application image to `main`/production;
+- verify production `/actuator/health/external` and wait for the production-only
+  uptime check to report success; and
+- confirm the fault endpoint remains absent from the promoted production
+  revision without generating a deliberate production 5xx.

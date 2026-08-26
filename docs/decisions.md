@@ -265,3 +265,28 @@ The trade-offs are explicit: the public uptime check can wake a scaled-to-zero
 instance; the email address remains in Terraform state despite being sensitive;
 and without distributed tracing, cross-dependency latency diagnosis relies on
 request IDs, logs, and aggregate metrics.
+
+## ADR-015 Project cost guardrails and manual teardown
+
+**Decision**: manage one EUR 5 monthly Cloud Billing budget through Terraform,
+scoped to the single GCP project, with current-spend email thresholds at 20%,
+50%, 90%, and 100%. Reuse the verified Phase 11 Monitoring email channel and do
+not introduce Pub/Sub or automated billing shutdown. Keep both Cloud Run
+services at zero minimum and one maximum instance. Maintain a dated inventory
+of GCP and Supabase resource limits, and require a reviewed
+`terraform plan -destroy` before any complete teardown.
+
+Retain production deletion protection during normal operation. A permanent
+teardown requires a separate reviewed apply that disables protection on the
+production Cloud Run service and production secret containers before destroy.
+Image cleanup also remains an explicit digest-level operation: current service
+images and intentional rollback candidates must be identified before deletion.
+
+**Reason**: a small budget provides an early signal without pretending to be a
+hard spending cap. The EUR 1 first threshold is appropriate for an environment
+expected to remain near zero, while four thresholds make escalation visible.
+Manual response and teardown keep destructive authority with the operator and
+preserve the phase's learning objective. Scale-to-zero limits idle compute, but
+the inventory makes less obvious boundaries visible: Artifact Registry storage
+can cost money while Cloud Run is idle, six active secret versions exactly use
+the current free allowance, and Supabase usage is outside GCP Billing.

@@ -8,6 +8,38 @@ variable "project_id" {
   }
 }
 
+variable "billing_account_id" {
+  description = "Cloud Billing account ID that owns the project-scoped monthly budget."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", var.billing_account_id))
+    error_message = "billing_account_id must use the 000000-000000-000000 format."
+  }
+}
+
+variable "billing_budget_amount" {
+  description = "Positive whole-unit monthly budget amount used for project cost alerts."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.billing_budget_amount > 0 && floor(var.billing_budget_amount) == var.billing_budget_amount
+    error_message = "billing_budget_amount must be a positive whole number."
+  }
+}
+
+variable "billing_budget_currency" {
+  description = "ISO 4217 currency code used by the Cloud Billing account."
+  type        = string
+  default     = "EUR"
+
+  validation {
+    condition     = can(regex("^[A-Z]{3}$", var.billing_budget_currency))
+    error_message = "billing_budget_currency must be a three-letter uppercase ISO 4217 code such as EUR."
+  }
+}
+
 variable "region" {
   description = "GCP region used by regional resources."
   type        = string

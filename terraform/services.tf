@@ -34,3 +34,15 @@ resource "google_project_service" "monitoring" {
 
   disable_on_destroy = false
 }
+
+# Enables programmatic creation and inspection of Cloud Billing budgets.
+
+# The API itself is free shared project infrastructure. It remains enabled if
+# Terraform later removes the budget or destroys the resources in this state.
+
+resource "google_project_service" "billing_budgets" {
+  project = var.project_id
+  service = "billingbudgets.googleapis.com"
+
+  disable_on_destroy = false
+}

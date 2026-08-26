@@ -5,6 +5,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 ## Contents
 
 - `architecture.md` - current local/cloud architecture and management boundaries
+- `cost-management.md` - cost inventory, budget alerts, scale-to-zero, and safe teardown runbook
 - `decisions.md` - architecture decision log
 - `deployment.md` - deployment and Terraform operating runbook
 - `observability.md` - structured logs, health, metrics, dashboard, alerts, and cost boundaries
@@ -20,6 +21,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `phase-9-verification.md` - Phase 9 continuous delivery, failure-gate, and rollback evidence
 - `phase-10-verification.md` - Phase 10 environment delivery, data-isolation, and IAM-boundary evidence
 - `phase-11-verification.md` - Phase 11 observability implementation and runtime verification record
+- `phase-12-verification.md` - Phase 12 budget, cost inventory, scale-to-zero, and teardown dry-run evidence
 
 ## Evidence organization
 

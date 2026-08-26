@@ -41,3 +41,10 @@ output "alert_notification_channel_verification_status" {
   description = "Verification status reported for the Cloud Monitoring email notification channel."
   value       = google_monitoring_notification_channel.alert_email.verification_status
 }
+
+# Exposes the provider-assigned budget resource name for CLI verification.
+
+output "billing_budget_name" {
+  description = "Full resource name of the project-scoped monthly Cloud Billing budget."
+  value       = google_billing_budget.project.name
+}

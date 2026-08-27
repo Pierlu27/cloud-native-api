@@ -1,0 +1,75 @@
+services:
+  controller:
+    # Build a project-owned controller image with the required plugins already
+    # installed, while keeping runtime configuration in the persistent volume.
+    build:
+      context: ./controller
+    image: cloud-native-api-jenkins-controller:2.568.2
+    ports:
+      # Port 8081 avoids colliding with the API, which uses host port 8080.
+      - "${JENKINS_HTTP_PORT:-8081}:8080"
+    expose:
+      # Inbound agents use this port only inside the private Compose network.
+      - "50000"
+    volumes:
+      # Users, plugins, nodes, credentials, and job history survive recreation
+      # of the controller container as long as this volume is retained.
+      - jenkins_home:/var/jenkins_home
+    restart: unless-stopped
+    networks:
+      - jenkins_network
+
+  build-test-agent:
+    # This static inbound agent executes Gradle build and test workloads. The
+    # Controller definition and its authentication secret are created manually
+    # in Phase 13, while Compose keeps the runtime container reproducible.
+    build:
+      context: ./build-test-agent
+    image: cloud-native-api-jenkins-build-test-agent:3386-jdk25
+    environment:
+      # Docker DNS resolves "controller" to the Controller container on the
+      # private Compose network; Windows localhost would point to this agent.
+      JENKINS_URL: http://controller:8080
+      JENKINS_TUNNEL: controller:50000
+      JENKINS_AGENT_NAME: build-test-agent
+      JENKINS_SECRET: ${JENKINS_BUILD_AGENT_SECRET:?Set JENKINS_BUILD_AGENT_SECRET in jenkins/.env}
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    depends_on:
+      - controller
+    restart: unless-stopped
+    networks:
+      - jenkins_network
+
+  docker-agent:
+    # Keep Docker operations on a dedicated agent because access to the host
+    # Docker Engine is substantially more privileged than a normal build.
+    build:
+      context: ./docker-agent
+    image: cloud-native-api-jenkins-docker-agent:3386-docker29
+    environment:
+      JENKINS_URL: http://controller:8080
+      JENKINS_TUNNEL: controller:50000
+      JENKINS_AGENT_NAME: docker-agent
+      JENKINS_SECRET: ${JENKINS_DOCKER_AGENT_SECRET:?Set JENKINS_DOCKER_AGENT_SECRET in jenkins/.env}
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    depends_on:
+      - controller
+    # Docker Desktop exposes the mounted socket as root:root with group write
+    # access. Supplementary group 0 lets the unprivileged Jenkins user use it.
+    group_add:
+      - "0"
+    volumes:
+      # Share the host daemon instead of starting a second Docker daemon in the
+      # agent. Images and containers are therefore managed by Docker Desktop.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - jenkins_network
+
+volumes:
+  jenkins_home:
+    name: cloud-native-api-jenkins-home
+
+networks:
+  jenkins_network:
+    name: cloud-native-api-jenkins-network

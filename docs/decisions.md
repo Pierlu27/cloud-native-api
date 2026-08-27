@@ -290,3 +290,34 @@ preserve the phase's learning objective. Scale-to-zero limits idle compute, but
 the inventory makes less obvious boundaries visible: Artifact Registry storage
 can cost money while Cloud Run is idle, six active secret versions exactly use
 the current free allowance, and Supabase usage is outside GCP Billing.
+
+## ADR-016 Local Jenkins Controller and static agents
+
+**Decision**: introduce Jenkins as a second, local CI/CD learning platform
+without replacing the production GitHub Actions path. Run a persistent
+Controller and two static inbound agents as peer Docker Compose services. Keep
+the Controller's built-in executor count at zero. Route Gradle work to the
+`build-test` label and Docker work to the `docker` label. Install the baseline
+plugins in a pinned project-owned Controller image, but retain manual runtime
+configuration during Phase 13; JCasC adoption remains Phase 14 work.
+
+Use Docker-outside-of-Docker for the Docker Agent: install only the Docker CLI
+in its image and mount Docker Desktop's `/var/run/docker.sock`. Add the socket's
+required supplementary group only to this agent. Do not expose the socket to
+the Build/Test Agent. Keep agent connection secrets in an ignored local
+`jenkins/.env`, with placeholders documented in a tracked example file.
+
+**Reason**: a Controller plus specialized agents demonstrates Jenkins's
+distributed execution model and capability-based scheduling instead of hiding
+both roles in one container. Inbound connections avoid SSH servers and SSH
+credentials in the agents. Static agents add deliberate lifecycle management
+but keep connection, identity, and recovery mechanics visible before dynamic
+agents are considered. A named Controller volume makes administrative state
+survive disposable container recreation.
+
+Docker socket mounting is operationally simple and reuses Docker Desktop, but
+it grants effectively root-equivalent control over the host Docker daemon. The
+dedicated `docker` label, separate container, and trusted-job-only policy make
+that boundary explicit; they do not remove the underlying risk. Jenkins remains
+independent from Terraform: Jenkins coordinates CI/CD work, whereas Terraform
+continues to own declarative cloud infrastructure.

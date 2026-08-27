@@ -8,6 +8,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `cost-management.md` - cost inventory, budget alerts, scale-to-zero, and safe teardown runbook
 - `decisions.md` - architecture decision log
 - `deployment.md` - deployment and Terraform operating runbook
+- `jenkins.md` - local Jenkins Controller/Agent architecture and operating runbook
 - `observability.md` - structured logs, health, metrics, dashboard, alerts, and cost boundaries
 - `local-toolchain-setup.md` - local setup for Terraform and gcloud
 - `security.md` - security notes and constraints
@@ -22,6 +23,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `phase-10-verification.md` - Phase 10 environment delivery, data-isolation, and IAM-boundary evidence
 - `phase-11-verification.md` - Phase 11 observability implementation and runtime verification record
 - `phase-12-verification.md` - Phase 12 budget, cost inventory, scale-to-zero, and teardown dry-run evidence
+- `phase-13-verification.md` - Phase 13 Jenkins Controller, agent, tooling, and persistence evidence
 
 ## Evidence organization
 

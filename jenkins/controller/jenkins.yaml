@@ -1,0 +1,23 @@
+jenkins:
+  # Make the source of the active Controller configuration visible in the UI.
+  systemMessage: "Cloud Native API Jenkins - managed by JCasC"
+
+  # The Controller coordinates work; project commands run only on agents.
+  numExecutors: 0
+
+  # Static inbound agents connect on the private Compose network through this
+  # fixed port. The port is not published to the Windows host.
+  slaveAgentPort: 50000
+
+  # Keep the local learning environment private and create its administrator
+  # from runtime variables rather than committing an identity or password.
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false

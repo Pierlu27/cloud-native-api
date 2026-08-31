@@ -9,6 +9,40 @@ jenkins:
   # fixed port. The port is not published to the Windows host.
   slaveAgentPort: 50000
 
+  # Recreate the two Phase 13 static nodes from code. The containers initiate
+  # the inbound connection and authenticate with Jenkins-generated secrets
+  # supplied only through the local, ignored jenkins/.env file.
+  nodes:
+    - permanent:
+        name: "build-test-agent"
+        nodeDescription: "Runs Gradle build and test workloads"
+        remoteFS: "/home/jenkins/agent"
+        numExecutors: 1
+        labelString: "build-test"
+        mode: EXCLUSIVE
+        retentionStrategy: "always"
+        launcher:
+          inbound:
+            workDirSettings:
+              disabled: false
+              failIfWorkDirIsMissing: false
+              internalDir: "remoting"
+
+    - permanent:
+        name: "docker-agent"
+        nodeDescription: "Runs trusted Docker workloads through the host daemon"
+        remoteFS: "/home/jenkins/agent"
+        numExecutors: 1
+        labelString: "docker"
+        mode: EXCLUSIVE
+        retentionStrategy: "always"
+        launcher:
+          inbound:
+            workDirSettings:
+              disabled: false
+              failIfWorkDirIsMissing: false
+              internalDir: "remoting"
+
   # Keep the local learning environment private and create its administrator
   # from runtime variables rather than committing an identity or password.
   securityRealm:

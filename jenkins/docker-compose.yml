@@ -28,9 +28,9 @@ services:
       - jenkins_network
 
   build-test-agent:
-    # This static inbound agent executes Gradle build and test workloads. The
-    # Controller definition and its authentication secret are created manually
-    # in Phase 13, while Compose keeps the runtime container reproducible.
+    # This static inbound agent executes Gradle build and test workloads. JCasC
+    # creates its Controller-side node definition, while Compose keeps the
+    # runtime container reproducible and supplies its local connection secret.
     build:
       context: ./build-test-agent
     image: cloud-native-api-jenkins-build-test-agent:3386-jdk25

@@ -76,6 +76,26 @@ services:
     networks:
       - jenkins_network
 
+  webhook-relay:
+    # GitHub cannot reach a Controller bound to the developer's localhost.
+    # Smee receives the public webhook and this client forwards it privately.
+    build:
+      context: ./webhook-relay
+    image: cloud-native-api-jenkins-webhook-relay:5.0.0
+    command:
+      - --url
+      - ${JENKINS_WEBHOOK_RELAY_URL:?Set JENKINS_WEBHOOK_RELAY_URL in jenkins/.env}
+      - --target
+      # Smee removes a trailing slash from target URLs. The harmless query
+      # parameter preserves Jenkins' required /github-webhook/ path and avoids
+      # a POST-to-GET redirect that the GitHub plugin rejects with HTTP 405.
+      - http://controller:8080/github-webhook/?source=smee
+    depends_on:
+      - controller
+    restart: unless-stopped
+    networks:
+      - jenkins_network
+
 volumes:
   jenkins_home:
     name: cloud-native-api-jenkins-home

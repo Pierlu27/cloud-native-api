@@ -68,3 +68,50 @@ credentials:
               description: "Read-only access to the cloud-native-api GitHub repository"
               username: "${JENKINS_GITHUB_USERNAME}"
               password: "${JENKINS_GITHUB_TOKEN}"
+
+# Job DSL owns the reproducible Multibranch parent job. Branch and pull-request
+# child jobs are discovered from GitHub and execute the Jenkinsfile stored in
+# their own revision rather than embedding pipeline steps in this Controller
+# configuration.
+jobs:
+  - script: |
+      multibranchPipelineJob('cloud-native-api') {
+          description('Discovers internal branches and pull requests for Pierlu27/cloud-native-api')
+
+          branchSources {
+              branchSource {
+                  source {
+                      github {
+                          id('cloud-native-api-github-source')
+                          apiUri('https://api.github.com')
+                          repositoryUrl('https://github.com/Pierlu27/cloud-native-api')
+                          configuredByUrl(false)
+                          credentialsId('github-cloud-native-api')
+                          repoOwner('Pierlu27')
+                          repository('cloud-native-api')
+
+                          traits {
+                              gitHubBranchDiscovery {
+                                  strategyId(1)
+                              }
+                              gitHubPullRequestDiscovery {
+                                  strategyId(1)
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+
+          orphanedItemStrategy {
+              discardOldItems {
+                  numToKeep(5)
+              }
+          }
+
+          factory {
+              workflowBranchProjectFactory {
+                  scriptPath('Jenkinsfile')
+              }
+          }
+      }

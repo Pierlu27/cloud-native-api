@@ -1,0 +1,117 @@
+jenkins:
+  # Make the source of the active Controller configuration visible in the UI.
+  systemMessage: "Cloud Native API Jenkins - managed by JCasC"
+
+  # The Controller coordinates work; project commands run only on agents.
+  numExecutors: 0
+
+  # Static inbound agents connect on the private Compose network through this
+  # fixed port. The port is not published to the Windows host.
+  slaveAgentPort: 50000
+
+  # Recreate the two Phase 13 static nodes from code. The containers initiate
+  # the inbound connection and authenticate with Jenkins-generated secrets
+  # supplied only through the local, ignored jenkins/.env file.
+  nodes:
+    - permanent:
+        name: "build-test-agent"
+        nodeDescription: "Runs Gradle build and test workloads"
+        remoteFS: "/home/jenkins/agent"
+        numExecutors: 1
+        labelString: "build-test"
+        mode: EXCLUSIVE
+        retentionStrategy: "always"
+        launcher:
+          inbound:
+            workDirSettings:
+              disabled: false
+              failIfWorkDirIsMissing: false
+              internalDir: "remoting"
+
+    - permanent:
+        name: "docker-agent"
+        nodeDescription: "Runs trusted Docker workloads through the host daemon"
+        remoteFS: "/home/jenkins/agent"
+        numExecutors: 1
+        labelString: "docker"
+        mode: EXCLUSIVE
+        retentionStrategy: "always"
+        launcher:
+          inbound:
+            workDirSettings:
+              disabled: false
+              failIfWorkDirIsMissing: false
+              internalDir: "remoting"
+
+  # Keep the local learning environment private and create its administrator
+  # from runtime variables rather than committing an identity or password.
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+# Register the GitHub identity once and let later Multibranch configuration
+# refer to its stable ID without embedding the token in jobs or source control.
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-cloud-native-api"
+              description: "Read-only access to the cloud-native-api GitHub repository"
+              username: "${JENKINS_GITHUB_USERNAME}"
+              password: "${JENKINS_GITHUB_TOKEN}"
+
+# Job DSL owns the reproducible Multibranch parent job. Branch and pull-request
+# child jobs are discovered from GitHub and execute the Jenkinsfile stored in
+# their own revision rather than embedding pipeline steps in this Controller
+# configuration.
+jobs:
+  - script: |
+      multibranchPipelineJob('cloud-native-api') {
+          description('Discovers internal branches and pull requests for Pierlu27/cloud-native-api')
+
+          branchSources {
+              branchSource {
+                  source {
+                      github {
+                          id('cloud-native-api-github-source')
+                          apiUri('https://api.github.com')
+                          repositoryUrl('https://github.com/Pierlu27/cloud-native-api')
+                          configuredByUrl(false)
+                          credentialsId('github-cloud-native-api')
+                          repoOwner('Pierlu27')
+                          repository('cloud-native-api')
+
+                          traits {
+                              gitHubBranchDiscovery {
+                                  strategyId(1)
+                              }
+                              gitHubPullRequestDiscovery {
+                                  strategyId(1)
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+
+          orphanedItemStrategy {
+              discardOldItems {
+                  numToKeep(5)
+              }
+          }
+
+          factory {
+              workflowBranchProjectFactory {
+                  scriptPath('Jenkinsfile')
+              }
+          }
+      }

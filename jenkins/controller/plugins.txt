@@ -1,0 +1,8 @@
+git:5.10.1
+workflow-aggregator:608.v67378e9d3db_1
+credentials-binding:728.v902a_273b_8947
+docker-workflow:653.v2f2c08eff0ec
+configuration-as-code:2117.vc05a_0b_e6b_f4e
+github-branch-source:1983.vfa_27ed961853
+job-dsl:3732.v9a_c49a_61a_313
+dark-theme:652.vea_da_dfea_e769

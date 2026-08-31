@@ -5,10 +5,11 @@ cloud-native CI/CD platform on Google Cloud. The repository is intentionally
 educational: every phase starts from explicit requirements, records technical
 decisions, and retains text-based verification evidence.
 
-The implementation currently covers Phases 0-12: application development,
+The implementation currently covers Phases 0-13: application development,
 containers, CI quality and security gates, immutable image publishing,
 environment-aware continuous delivery, Terraform-managed infrastructure,
-structured observability, and cost control.
+structured observability, cost control, and a local distributed Jenkins
+bootstrap.
 
 ## What the project demonstrates
 
@@ -24,9 +25,11 @@ structured observability, and cost control.
 - Secret Manager references without secret payloads in Git or Terraform state;
 - portable structured JSON logs with request correlation through MDC;
 - native and log-based metrics, dashboard, alerts, email notification, and an
-  external production uptime check; and
+  external production uptime check;
 - a Terraform-managed monthly billing budget, scale-to-zero configuration,
-  cost inventory, and reviewed teardown procedure.
+  cost inventory, and reviewed teardown procedure; and
+- a persistent local Jenkins Controller with separate static Build/Test and
+  Docker inbound agents.
 
 ## Working approach
 
@@ -73,6 +76,10 @@ the billing budget. GitHub Actions owns changing delivery state: image builds,
 explicit revisions, temporary candidate tags, smoke tests, and traffic
 promotion. Supabase projects and secret payload values remain outside Terraform.
 
+Phase 13 also provides an independent local Jenkins Controller/Agent stack for
+the second CI/CD learning track. It has no delivery pipeline yet and does not
+replace the active GitHub Actions path.
+
 See [`docs/architecture.md`](docs/architecture.md) for the complete ownership
 and signal-flow model.
 
@@ -83,6 +90,7 @@ cloud-native-api/
 ├── .github/workflows/       # CI/CD orchestration and reusable Cloud Run delivery
 ├── docs/                    # architecture, runbooks, decisions, and evidence
 ├── docker/                  # container support files
+├── jenkins/                 # local Controller and static agent stack
 ├── specs/phases/            # phase specifications and acceptance criteria
 ├── src/                     # Spring Boot application and tests
 ├── terraform/               # GCP infrastructure as code
@@ -132,6 +140,24 @@ docker compose up --build
 The named `postgres-data` volume retains database data across normal
 `docker compose down` operations. Use `docker compose down -v` only when local
 data should be discarded intentionally.
+
+## Local Jenkins stack
+
+Phase 13 provides a separate Compose stack with a persistent Controller, one
+Build/Test Agent, and one Docker Agent. Agent identities are created once in
+the Jenkins UI and their connection secrets remain in ignored
+`jenkins/.env`. The Controller coordinates jobs but has zero executors; labels
+route Gradle work to `build-test` and Docker work to `docker`.
+
+After the first-time bootstrap is complete, start all three services with:
+
+```bash
+docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d
+```
+
+See [`docs/jenkins.md`](docs/jenkins.md) for initial setup, agent registration,
+normal operation, persistence, troubleshooting, and the Docker socket trust
+boundary.
 
 ## Job API
 
@@ -268,6 +294,7 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
 - [Security](docs/security.md)
 - [Observability](docs/observability.md)
 - [Cost and resource management](docs/cost-management.md)
+- [Jenkins local stack](docs/jenkins.md)
 - [Architecture decision log](docs/decisions.md)
 - [Local toolchain setup](docs/local-toolchain-setup.md)
 - [Phase 1 verification](docs/phase-1-verification.md)
@@ -281,13 +308,15 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
 - [Phase 10 verification](docs/phase-10-verification.md)
 - [Phase 11 verification](docs/phase-11-verification.md)
 - [Phase 12 verification](docs/phase-12-verification.md)
+- [Phase 13 verification](docs/phase-13-verification.md)
 
 ## Roadmap status
 
 - **Phases 0-4 complete**: setup, API, containers, CI, security, and quality.
 - **Phases 5-9 complete**: Artifact Registry, Cloud Run, Supabase persistence,
   Terraform adoption, and continuous delivery.
-- **Phases 10-12 complete**: environment isolation, observability, and cost
-  management.
-- **Phases 13-17 planned**: Jenkins is introduced as a separate learning track,
-  not as a replacement for the existing application or Terraform model.
+- **Phases 10-13 complete**: environment isolation, observability, cost
+  management, and the Jenkins Controller/Agent bootstrap.
+- **Phases 14-17 planned**: Jenkins configuration and pipelines extend the
+  separate learning track without replacing the existing application,
+  GitHub Actions delivery path, or Terraform model.

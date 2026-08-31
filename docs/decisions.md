@@ -321,3 +321,37 @@ dedicated `docker` label, separate container, and trusted-job-only policy make
 that boundary explicit; they do not remove the underlying risk. Jenkins remains
 independent from Terraform: Jenkins coordinates CI/CD work, whereas Terraform
 continues to own declarative cloud infrastructure.
+
+## ADR-017 Jenkins configuration ownership and local GitHub integration
+
+**Decision**: make JCasC the source of truth for the local Jenkins Controller's
+system settings, security realm, authorization policy, GitHub credential
+metadata, and two static-node definitions. Keep administrator, GitHub, and
+inbound-agent secret values in the ignored local environment. Create the
+single-repository Multibranch parent through Job DSL at Controller startup and
+keep branch pipeline logic in the revision-owned root `Jenkinsfile`.
+
+Discover branches only while they are not represented by open pull requests;
+for a PR, build the temporary `pr-merge` integration with its current target
+branch. Retain at most five orphaned child jobs. Give the repository-scoped
+fine-grained token read access for discovery and checkout plus write access
+only to commit statuses. Configure the GitHub webhook manually rather than
+granting webhook-administration permission.
+
+Use a pinned, project-owned Smee client container as a temporary development
+bridge from the public webhook channel to the private Jenkins
+`/github-webhook/` endpoint. Keep the unique channel URL outside version
+control, do not expose the Jenkins UI, and do not treat Smee or the localhost
+status target as production ingress.
+
+**Reason**: JCasC and Job DSL make Controller recovery and review repeatable
+while still exposing the boundary between declarative node identities and
+Jenkins-generated runtime connection secrets. A revision-owned `Jenkinsfile`
+lets each branch and PR describe the pipeline it is asking Jenkins to execute.
+Avoiding duplicate branch/PR builds reduces waste, while `pr-merge` tests the
+proposed change against the target branch before the real merge. The narrowly
+scoped status permission provides useful GitHub feedback without giving Jenkins
+general repository or webhook write authority. Smee demonstrates event-driven
+integration behind NAT without making a development Controller publicly
+reachable; its unauthenticated channel model remains an explicit local-only
+trade-off.

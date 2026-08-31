@@ -65,7 +65,7 @@ credentials:
           - usernamePassword:
               scope: GLOBAL
               id: "github-cloud-native-api"
-              description: "Read-only access to the cloud-native-api GitHub repository"
+              description: "Repository discovery and commit status access for cloud-native-api"
               username: "${JENKINS_GITHUB_USERNAME}"
               password: "${JENKINS_GITHUB_TOKEN}"
 

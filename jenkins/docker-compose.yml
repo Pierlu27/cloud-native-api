@@ -23,6 +23,8 @@ services:
       CASC_STRICT_SECRET_RESOLUTION: "true"
       JENKINS_ADMIN_ID: ${JENKINS_ADMIN_ID:?Set JENKINS_ADMIN_ID in jenkins/.env}
       JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?Set JENKINS_ADMIN_PASSWORD in jenkins/.env}
+      JENKINS_GITHUB_USERNAME: ${JENKINS_GITHUB_USERNAME:?Set JENKINS_GITHUB_USERNAME in jenkins/.env}
+      JENKINS_GITHUB_TOKEN: ${JENKINS_GITHUB_TOKEN:?Set JENKINS_GITHUB_TOKEN in jenkins/.env}
     restart: unless-stopped
     networks:
       - jenkins_network

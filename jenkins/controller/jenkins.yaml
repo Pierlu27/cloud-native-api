@@ -55,3 +55,16 @@ jenkins:
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
+
+# Register the GitHub identity once and let later Multibranch configuration
+# refer to its stable ID without embedding the token in jobs or source control.
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-cloud-native-api"
+              description: "Read-only access to the cloud-native-api GitHub repository"
+              username: "${JENKINS_GITHUB_USERNAME}"
+              password: "${JENKINS_GITHUB_TOKEN}"

@@ -4,9 +4,11 @@ Phase 13 introduced Jenkins as a second, independent CI/CD learning platform.
 Phase 14 makes the Controller configuration reproducible through Jenkins
 Configuration as Code (JCasC), creates a GitHub Multibranch Pipeline through
 Job DSL, and connects GitHub events to the local Controller through a temporary
-Smee relay. The placeholder `Jenkinsfile` proves discovery and agent routing;
-actual CI stages begin in Phase 15. Jenkins does not yet replace the existing
-GitHub Actions delivery path.
+Smee relay. Phase 15 now prepares the Controller and Build/Test Agent for the
+real CI stages with reporting plugins, Gitleaks, Testcontainers access, and
+persistent tool caches. The root `Jenkinsfile` remains a discovery placeholder
+until the CI stages are implemented later in Phase 15. Jenkins does not yet
+replace the existing GitHub Actions delivery path.
 
 ## Architecture
 
@@ -17,7 +19,7 @@ Docker Desktop
 ├── controller
 │   └── coordinates nodes, jobs, plugins, credentials, and build history
 ├── build-test-agent
-│   └── executes source checkout and Gradle build/test workloads
+│   └── executes Gradle, Gitleaks, and Testcontainers-backed test workloads
 ├── docker-agent
 │   └── executes Docker CLI operations against Docker Desktop
 └── webhook-relay
@@ -44,17 +46,19 @@ The project owns four reproducible images:
 
 - `jenkins/controller/Dockerfile` pins the Jenkins LTS/JDK image and installs
   the versioned plugin list from `jenkins/controller/plugins.txt`;
-- `jenkins/build-test-agent/Dockerfile` provides Java 25, Git, and curl. Gradle
-  is supplied by the repository's versioned wrapper rather than installed
-  globally; and
+- `jenkins/build-test-agent/Dockerfile` provides Java 25, Git, curl, and a
+  pinned Gitleaks binary. Gradle is supplied by the repository's versioned
+  wrapper rather than installed globally; and
 - `jenkins/docker-agent/Dockerfile` combines the official inbound-agent runtime
   with a pinned Docker CLI, Buildx, Compose, Git, and curl; and
 - `jenkins/webhook-relay/Dockerfile` installs the pinned official Smee client
   in a small Node image and runs it as the unprivileged `node` user.
 
 The Controller plugins include Git, Pipeline, Credentials Binding, Docker
-Pipeline, Configuration as Code, GitHub Branch Source, and Job DSL. The Dark
-Theme plugin is also installed for the local UI. JCasC applies the Controller
+Pipeline, Configuration as Code, GitHub Branch Source, Job DSL, JUnit, and
+Warnings Next Generation. JUnit publishes Gradle test XML; Warnings Next
+Generation converts Checkstyle XML into navigable Jenkins issues. The Dark Theme
+plugin is also installed for the local UI. JCasC applies the Controller
 configuration automatically at startup; Job DSL creates the Multibranch parent
 job from the `jobs` section of the same YAML file.
 
@@ -64,27 +68,38 @@ The named volume `cloud-native-api-jenkins-home` is mounted at
 `/var/jenkins_home`. It preserves users, plugins, node definitions, credentials,
 jobs, build history, and Controller configuration across container recreation.
 
-The agents do not currently have persistent workspace volumes. Their checked
-out workspaces and Gradle caches survive a normal container restart but are
-discarded when the agent containers are removed and recreated. Source and
-build configuration remain reproducible from Git and the Gradle Wrapper.
+Build/Test Agent source workspaces remain disposable and reproducible from Git.
+Two tool-data volumes survive agent recreation independently of those
+workspaces:
+
+| Volume | Agent path | Contents |
+|---|---|---|
+| `cloud-native-api-jenkins-gradle-cache` | `/home/jenkins/.gradle` | Gradle Wrapper distributions, resolved dependencies, and reusable Gradle data |
+| `cloud-native-api-jenkins-dependency-check-data` | `/home/jenkins/.dependency-check-data` | NVD vulnerability data used by both Dependency-Check tasks |
+
+The Gradle volume does not select the Gradle version; the repository-owned
+Wrapper remains authoritative. The NVD volume replaces only Jenkins's default
+workspace-local data directory. Local commands and GitHub Actions continue to
+use the ignored project `.dependency-check-data` fallback.
 
 Use `docker compose down` for a normal teardown. Do not add `-v` unless losing
 the local Jenkins installation is intentional:
 
 ```text
-docker compose down       -> removes containers and network, keeps jenkins_home
-docker compose down -v    -> also removes jenkins_home and its Jenkins data
+docker compose down       -> removes containers/network, keeps all named volumes
+docker compose down -v    -> also removes Controller, Gradle, and NVD volume data
 ```
 
 ## Current JCasC bootstrap
 
 Copy `jenkins/agent-secrets.env.example` to the ignored `jenkins/.env` and
-replace every placeholder. The local file supplies four different categories:
+replace every placeholder. The local file supplies five different categories:
 
 - administrator identity and password used by JCasC;
 - GitHub username and fine-grained token used for discovery, checkout, and
   commit status publication;
+- the existing NVD API key, registered separately as Jenkins secret-text
+  credential `nvd-api-key` because Jenkins cannot read GitHub Actions secrets;
 - the two Jenkins-generated inbound-agent secrets; and
 - the temporary Smee channel URL used by the webhook relay.
 
@@ -117,6 +132,36 @@ manual UI setup. Jenkins generates new inbound secrets for that new Controller
 state; obtain them from the two node pages and update only the ignored local
 `.env` before starting the agent containers. Node identities are configuration
 as code, while their connection secrets remain runtime state.
+
+## Phase 15 CI runtime prerequisites
+
+The Build/Test Agent mounts the same Docker Desktop socket used by the Docker
+Agent, but it does not install the Docker CLI. Testcontainers' Java Docker client
+opens `/var/run/docker.sock` directly and asks the host daemon to create sibling
+PostgreSQL and Ryuk containers. On Docker Desktop,
+`TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` lets the agent reach the
+random host ports published for PostgreSQL.
+
+Compose adds supplementary group ID `0` because this local Docker Desktop socket
+is `root:root` with group read/write permission. The agent process remains user
+`jenkins`; group membership grants socket access without changing its UID.
+
+`GRADLE_USER_HOME` points Gradle at its named volume.
+`DEPENDENCY_CHECK_DATA_DIRECTORY` selects the separate NVD volume only in
+Jenkins. JCasC resolves `JENKINS_NVD_API_KEY` from the ignored local environment
+and creates credential ID `nvd-api-key`; the future `Jenkinsfile` will bind it
+as `NVD_API_KEY` only around Dependency-Check commands.
+
+After changing agent tooling, plugins, or JCasC, rebuild and recreate the
+affected services without removing volumes:
+
+```bash
+docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml build controller build-test-agent
+docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d --force-recreate controller build-test-agent
+```
+
+The runtime preparation is verified, but the Phase 15 CI stages are not yet in
+the placeholder `Jenkinsfile`.
 
 ## Historical Phase 13 manual bootstrap
 
@@ -343,27 +388,30 @@ job can reach Docker Desktop's daemon.
 
 ## Docker socket trust boundary
 
-The Docker Agent mounts:
+Both static agents mount:
 
 ```text
 /var/run/docker.sock:/var/run/docker.sock
 ```
 
-This is Docker-outside-of-Docker: the container has a Docker client but no
-second daemon. Commands cross the socket and are executed by Docker Desktop's
+This is Docker-outside-of-Docker: neither agent contains a second daemon.
+Commands and API calls cross the socket and are executed by Docker Desktop's
 daemon. On this local setup, the mounted socket is `root:root` with group
-read/write permission. Compose therefore adds supplementary group ID `0` to
-the otherwise unprivileged `jenkins` user.
+read/write permission. Compose therefore adds supplementary group ID `0` to the
+otherwise unprivileged `jenkins` user in both containers.
 
 Commands such as `docker --version` need only the local client. Commands such
 as `docker version`, `docker build`, `docker run`, and `docker push` require
-daemon access through the socket.
+daemon access through the socket. Only the Docker Agent contains that CLI. The
+Build/Test Agent instead uses Testcontainers' Java client to send Docker Engine
+API requests through the socket for ephemeral PostgreSQL test infrastructure.
 
 Socket access is effectively root-equivalent control over the host Docker
-daemon: a job can create containers and mount host-visible paths. Only trusted
-Docker stages should use the `docker` label. The Build/Test Agent deliberately
-does not receive this mount. The stack is local-only and must not expose this
-agent to untrusted jobs or public users.
+daemon: a job can create containers and mount host-visible paths. The Phase 15
+Testcontainers requirement deliberately expands this boundary beyond the Phase
+13 Docker Agent. Only trusted repository code may use either agent; application
+image build/push commands remain restricted to the `docker` label. The stack is
+local-only and must not expose either agent to untrusted jobs or public users.
 
 ## Why static inbound agents
 

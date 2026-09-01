@@ -355,3 +355,33 @@ general repository or webhook write authority. Smee demonstrates event-driven
 integration behind NAT without making a development Controller publicly
 reachable; its unauthenticated channel model remains an explicit local-only
 trade-off.
+
+## ADR-018 Jenkins CI runtime, Testcontainers, and persistent tool data
+
+**Decision**: reuse the Phase 4 Gradle quality policies and repository-owned
+Gitleaks configuration rather than create Jenkins-specific rules. Install a
+pinned Gitleaks binary on the Build/Test Agent and add pinned JUnit and Warnings
+Next Generation plugins to the Controller for Jenkins-native test and Checkstyle
+reporting.
+
+Keep the repository Gradle Wrapper authoritative while mounting separate named
+volumes for Gradle user-home data and the Dependency-Check NVD database. Allow
+`build.gradle` to accept the Jenkins NVD path through an environment variable
+while retaining the repository-local fallback used by developers and GitHub
+Actions. Register the existing NVD API key separately as JCasC credential
+`nvd-api-key`; Jenkins cannot consume the value stored in GitHub Actions.
+
+Mount Docker Desktop's socket on the Build/Test Agent and set the Docker Desktop
+host override so the existing PostgreSQL Testcontainers tests can run unchanged.
+Do not install the Docker CLI on this agent: Testcontainers communicates through
+its Java Docker client, while image build and publishing remain Docker Agent
+responsibilities. This decision supersedes only ADR-016's Phase 13 statement
+that the Build/Test Agent has no socket; the two-agent scheduling model remains.
+
+**Reason**: executing a different database-testing strategy only in Jenkins
+would make the two CI platforms validate different behavior. The socket keeps
+the established Testcontainers tests portable, while separate volumes avoid
+repeated Gradle and NVD downloads after agent recreation. Pinning executable and
+plugin versions makes rebuilt images repeatable. Socket access remains
+effectively root-equivalent Docker host access, so both static agents accept
+only trusted repository jobs and the Jenkins stack remains local-only.

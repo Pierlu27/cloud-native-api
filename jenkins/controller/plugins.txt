@@ -1,5 +1,7 @@
 git:5.10.1
 workflow-aggregator:608.v67378e9d3db_1
+junit:1424.vc64a_edde7777
+warnings-ng:13.10233.va_9efb_20556c5
 credentials-binding:728.v902a_273b_8947
 docker-workflow:653.v2f2c08eff0ec
 configuration-as-code:2117.vc05a_0b_e6b_f4e

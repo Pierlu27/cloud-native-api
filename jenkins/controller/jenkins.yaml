@@ -68,6 +68,11 @@ credentials:
               description: "Repository discovery and commit status access for cloud-native-api"
               username: "${JENKINS_GITHUB_USERNAME}"
               password: "${JENKINS_GITHUB_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "nvd-api-key"
+              description: "NVD API key for Jenkins Dependency-Check stages"
+              secret: "${JENKINS_NVD_API_KEY}"
 
 # Job DSL owns the reproducible Multibranch parent job. Branch and pull-request
 # child jobs are discovered from GitHub and execute the Jenkinsfile stored in

@@ -25,6 +25,7 @@ services:
       JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?Set JENKINS_ADMIN_PASSWORD in jenkins/.env}
       JENKINS_GITHUB_USERNAME: ${JENKINS_GITHUB_USERNAME:?Set JENKINS_GITHUB_USERNAME in jenkins/.env}
       JENKINS_GITHUB_TOKEN: ${JENKINS_GITHUB_TOKEN:?Set JENKINS_GITHUB_TOKEN in jenkins/.env}
+      JENKINS_NVD_API_KEY: ${JENKINS_NVD_API_KEY:?Set JENKINS_NVD_API_KEY in jenkins/.env}
     restart: unless-stopped
     networks:
       - jenkins_network
@@ -44,8 +45,27 @@ services:
       JENKINS_AGENT_NAME: build-test-agent
       JENKINS_SECRET: ${JENKINS_BUILD_AGENT_SECRET:?Set JENKINS_BUILD_AGENT_SECRET in jenkins/.env}
       JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+      # Keep Gradle downloads and Dependency-Check vulnerability data outside
+      # disposable branch workspaces and agent container layers.
+      GRADLE_USER_HOME: /home/jenkins/.gradle
+      DEPENDENCY_CHECK_DATA_DIRECTORY: /home/jenkins/.dependency-check-data
+      # PostgreSQL Testcontainers publish random ports through Docker Desktop;
+      # the agent reaches those host ports through this special DNS name.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
     depends_on:
       - controller
+    # Docker Desktop exposes the mounted socket as root:root with group write
+    # access, so this supplementary group lets the Jenkins user open it.
+    group_add:
+      - "0"
+    volumes:
+      # Gradle and NVD data have different lifecycles and can be cleaned or
+      # inspected independently without deleting Jenkins Controller state.
+      - gradle_cache:/home/jenkins/.gradle
+      - dependency_check_data:/home/jenkins/.dependency-check-data
+      # Testcontainers uses the host daemon to create sibling PostgreSQL and
+      # Ryuk containers; this does not install a daemon inside the agent.
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
       - jenkins_network
@@ -99,6 +119,10 @@ services:
 volumes:
   jenkins_home:
     name: cloud-native-api-jenkins-home
+  gradle_cache:
+    name: cloud-native-api-jenkins-gradle-cache
+  dependency_check_data:
+    name: cloud-native-api-jenkins-dependency-check-data
 
 networks:
   jenkins_network:

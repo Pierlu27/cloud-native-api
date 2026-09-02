@@ -2,15 +2,19 @@
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd https://dependency-check.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
-    <!-- Owner: Pierluigi. Expiry: 2026-09-19. Reviewed false CPE matches: these CVEs affect Spring Framework, not Dependency Management 1.1.7. -->
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@1\.1\.7$</packageUrl><cve>CVE-2016-9878</cve></suppress>
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@1\.1\.7$</packageUrl><cve>CVE-2018-11040</cve></suppress>
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@1\.1\.7$</packageUrl><cve>CVE-2018-1270</cve></suppress>
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@1\.1\.7$</packageUrl><cve>CVE-2022-22965</cve></suppress>
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@1\.1\.7$</packageUrl><cve>CVE-2024-22259</cve></suppress>
+    <!-- Owner: Pierluigi. Expiry: 2026-09-19. The Gradle dependency-management plugin is not Spring Framework. -->
+    <suppress until="2026-09-19Z">
+        <packageUrl regex="true">^pkg:maven/io\.spring\.gradle/dependency-management-plugin@.*$</packageUrl>
+        <cpe>cpe:/a:pivotal_software:spring_framework</cpe>
+        <cpe>cpe:/a:vmware:spring_framework</cpe>
+    </suppress>
 
-    <!-- Owner: Pierluigi. Expiry: 2026-09-19. Reviewed false CPE match: this CVE affects Spring Tools IDE extensions, not Spring Boot Loader Tools. -->
-    <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-loader-tools@4\.1\.0$</packageUrl><cve>CVE-2022-31691</cve></suppress>
+    <!-- Owner: Pierluigi. Expiry: 2026-09-19. Spring Boot Loader Tools is not a Spring Tools IDE or editor extension. -->
+    <suppress until="2026-09-19Z">
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-loader-tools@.*$</packageUrl>
+        <cpe>cpe:/a:vmware:spring_boot_tools</cpe>
+        <cpe>cpe:/a:vmware:spring_tools</cpe>
+    </suppress>
 
     <!-- Owner: Pierluigi. Expiry: 2026-09-19. No supported Spring Boot 4.1.x upgrade currently resolves these transitive HttpComponents findings. -->
     <suppress until="2026-09-19Z"><packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents\.core5/httpcore5@5\.4\.2$</packageUrl><cve>CVE-2026-54399</cve></suppress>

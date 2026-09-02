@@ -32,7 +32,7 @@ configurations {
 
 dependencies {
 	// Mirrors the plugins DSL classpath so Dependency-Check can scan it.
-	buildPluginClasspath 'org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.0'
+	buildPluginClasspath 'org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.1'
 	buildPluginClasspath 'io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7'
 	buildPluginClasspath 'org.owasp.dependencycheck:org.owasp.dependencycheck.gradle.plugin:12.2.2'
 

@@ -1,7 +1,7 @@
 plugins {
 	id 'java'
 	id 'checkstyle'
-	id 'org.springframework.boot' version '4.1.0'
+	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'org.owasp.dependencycheck' version '12.2.2'
 }
@@ -32,7 +32,7 @@ configurations {
 
 dependencies {
 	// Mirrors the plugins DSL classpath so Dependency-Check can scan it.
-	buildPluginClasspath 'org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.0'
+	buildPluginClasspath 'org.springframework.boot:org.springframework.boot.gradle.plugin:4.1.1'
 	buildPluginClasspath 'io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7'
 	buildPluginClasspath 'org.owasp.dependencycheck:org.owasp.dependencycheck.gradle.plugin:12.2.2'
 
@@ -66,10 +66,16 @@ checkstyle {
 
 tasks.withType(Checkstyle).configureEach {
 	reports {
+		xml.required = true
 		html.required = true
 		sarif.required = true
 	}
 }
+
+// Use a persistent agent path in Jenkins while preserving the repository-local
+// cache used by local commands and GitHub Actions.
+def dependencyCheckDataDirectory = providers.environmentVariable('DEPENDENCY_CHECK_DATA_DIRECTORY')
+	.getOrElse(file('.dependency-check-data').absolutePath)
 
 dependencyCheck {
 	failBuildOnCVSS = 7.0
@@ -77,7 +83,7 @@ dependencyCheck {
 	suppressionFile = 'config/dependency-check/suppressions.xml'
 	scanConfigurations = ['runtimeClasspath']
 	skipTestGroups = false
-	data.directory = file('.dependency-check-data').absolutePath
+	data.directory = dependencyCheckDataDirectory
 	nvd.apiKey = System.getenv('NVD_API_KEY')
 }
 
@@ -94,7 +100,7 @@ tasks.register('dependencyCheckBuildEnvironment', org.owasp.dependencycheck.grad
 		scanConfigurations = ['buildPluginClasspath']
 		scanSet = []
 		skipTestGroups = false
-		data.directory = file('.dependency-check-data').absolutePath
+		data.directory = dependencyCheckDataDirectory
 		nvd.apiKey = System.getenv('NVD_API_KEY')
 	}
 }

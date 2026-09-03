@@ -5,11 +5,11 @@ cloud-native CI/CD platform on Google Cloud. The repository is intentionally
 educational: every phase starts from explicit requirements, records technical
 decisions, and retains text-based verification evidence.
 
-The implementation currently covers Phases 0-13: application development,
+The implementation currently covers Phases 0-15: application development,
 containers, CI quality and security gates, immutable image publishing,
 environment-aware continuous delivery, Terraform-managed infrastructure,
 structured observability, cost control, and a local distributed Jenkins
-bootstrap.
+platform configured as code with a complete continuous-integration pipeline.
 
 ## What the project demonstrates
 
@@ -28,8 +28,11 @@ bootstrap.
   external production uptime check;
 - a Terraform-managed monthly billing budget, scale-to-zero configuration,
   cost inventory, and reviewed teardown procedure; and
-- a persistent local Jenkins Controller with separate static Build/Test and
-  Docker inbound agents.
+- a persistent local Jenkins Controller configured through JCasC, a GitHub
+  Multibranch job, and separate static Build/Test and Docker inbound agents;
+  and
+- a Jenkins CI pipeline with tests, Checkstyle, dependency scans, full-history
+  secret scanning, archived reports, and GitHub commit statuses.
 
 ## Working approach
 
@@ -76,9 +79,10 @@ the billing budget. GitHub Actions owns changing delivery state: image builds,
 explicit revisions, temporary candidate tags, smoke tests, and traffic
 promotion. Supabase projects and secret payload values remain outside Terraform.
 
-Phase 13 also provides an independent local Jenkins Controller/Agent stack for
-the second CI/CD learning track. It has no delivery pipeline yet and does not
-replace the active GitHub Actions path.
+Phases 13-15 provide an independent local Jenkins Controller/Agent stack for
+the second CI/CD learning track. Jenkins now runs the complete validation
+pipeline, but it has no image-publishing or Cloud Run delivery pipeline yet and
+does not replace the active GitHub Actions delivery path.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete ownership
 and signal-flow model.
@@ -143,11 +147,13 @@ data should be discarded intentionally.
 
 ## Local Jenkins stack
 
-Phase 13 provides a separate Compose stack with a persistent Controller, one
-Build/Test Agent, and one Docker Agent. Agent identities are created once in
-the Jenkins UI and their connection secrets remain in ignored
-`jenkins/.env`. The Controller coordinates jobs but has zero executors; labels
-route Gradle work to `build-test` and Docker work to `docker`.
+Phases 13-15 provide a separate Compose stack with a persistent Controller, one
+Build/Test Agent, and one Docker Agent. JCasC recreates the logical agents,
+credentials, security settings, and GitHub Multibranch job from tracked
+configuration; only secret values remain in ignored `jenkins/.env`. The
+Controller coordinates jobs but has zero executors. The current Jenkins CI
+pipeline routes all Gradle, quality, and security stages to `build-test`; the
+`docker` label is reserved for later image-build and delivery work.
 
 After the first-time bootstrap is complete, start all three services with:
 
@@ -156,8 +162,8 @@ docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d
 ```
 
 See [`docs/jenkins.md`](docs/jenkins.md) for initial setup, agent registration,
-normal operation, persistence, troubleshooting, and the Docker socket trust
-boundary.
+JCasC and webhook operation, pipeline stages, persistence, troubleshooting,
+and the Docker socket trust boundary.
 
 ## Job API
 
@@ -198,6 +204,21 @@ merge or manual run on `develop` or `main`, the workflow:
 4. resolves its temporary tagged URL and executes the smoke test;
 5. promotes that exact revision only when the smoke test passes; and
 6. removes the temporary candidate tag after success or failure.
+
+Jenkins provides a second, independent CI implementation. Its Multibranch job
+discovers repository branches and pull requests, checks out the corresponding
+commit, and runs the root `Jenkinsfile` sequentially:
+
+```text
+Checkout -> Build -> Test -> Checkstyle -> runtime dependency scan
+         -> build dependency scan -> Gitleaks
+```
+
+JUnit and static-analysis results are interpreted by Jenkins, while HTML,
+SARIF, JSON, and dependency reports are archived with the build. A failed
+stage blocks every later stage, but its `post` publishers still preserve the
+available diagnostic evidence. Jenkins then reports the final result to the
+GitHub commit. It does not publish images or deploy Cloud Run in Phase 15.
 
 | Git branch | GitHub Environment | Cloud Run service | Database | Promotion |
 |---|---|---|---|---|
@@ -309,14 +330,18 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
 - [Phase 11 verification](docs/phase-11-verification.md)
 - [Phase 12 verification](docs/phase-12-verification.md)
 - [Phase 13 verification](docs/phase-13-verification.md)
+- [Phase 14 verification](docs/phase-14-verification.md)
+- [Phase 15 verification](docs/phase-15-verification.md)
 
 ## Roadmap status
 
 - **Phases 0-4 complete**: setup, API, containers, CI, security, and quality.
 - **Phases 5-9 complete**: Artifact Registry, Cloud Run, Supabase persistence,
   Terraform adoption, and continuous delivery.
-- **Phases 10-13 complete**: environment isolation, observability, cost
-  management, and the Jenkins Controller/Agent bootstrap.
-- **Phases 14-17 planned**: Jenkins configuration and pipelines extend the
-  separate learning track without replacing the existing application,
+- **Phases 10-12 complete**: environment isolation, observability, and cost
+  management.
+- **Phases 13-15 complete**: Jenkins Controller/Agent bootstrap, configuration
+  as code, GitHub integration, and continuous integration.
+- **Phases 16-17 planned**: Jenkins image delivery and later pipeline work
+  extend the separate learning track without replacing the application,
   GitHub Actions delivery path, or Terraform model.

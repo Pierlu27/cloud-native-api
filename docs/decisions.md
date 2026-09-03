@@ -378,10 +378,25 @@ its Java Docker client, while image build and publishing remain Docker Agent
 responsibilities. This decision supersedes only ADR-016's Phase 13 statement
 that the Build/Test Agent has no socket; the two-agent scheduling model remains.
 
+Use one explicit checkout followed by sequential Build, Test, Checkstyle,
+runtime dependency, build dependency, and Gitleaks stages. Keep gates fail-fast,
+but place JUnit, recorded-issue, and artifact publication in stage `post` blocks
+so diagnostics survive a failure. Bind the NVD credential only around the two
+commands that consume it, and require Gitleaks to redact retained output.
+
+Treat an incorrect CPE product identity as a defect in scan evidence rather than
+as an accepted vulnerability. A reviewed exception must pair the exact package
+identity with only the incorrect CPE, retain an owner and expiry, and leave valid
+product identities and the CVSS threshold active. This avoids adding a new CVE
+exception whenever NVD attaches another vulnerability to the same wrong CPE.
+
 **Reason**: executing a different database-testing strategy only in Jenkins
 would make the two CI platforms validate different behavior. The socket keeps
 the established Testcontainers tests portable, while separate volumes avoid
 repeated Gradle and NVD downloads after agent recreation. Pinning executable and
-plugin versions makes rebuilt images repeatable. Socket access remains
-effectively root-equivalent Docker host access, so both static agents accept
-only trusted repository jobs and the Jenkins stack remains local-only.
+plugin versions makes rebuilt images repeatable. Sequential gates keep failure
+ownership clear, while unconditional publication preserves the evidence needed
+to diagnose the first failure. Scoped CPE correction removes false product
+matches without weakening genuine vulnerability detection. Socket access
+remains effectively root-equivalent Docker host access, so both static agents
+accept only trusted repository jobs and the Jenkins stack remains local-only.

@@ -4,11 +4,10 @@ Phase 13 introduced Jenkins as a second, independent CI/CD learning platform.
 Phase 14 makes the Controller configuration reproducible through Jenkins
 Configuration as Code (JCasC), creates a GitHub Multibranch Pipeline through
 Job DSL, and connects GitHub events to the local Controller through a temporary
-Smee relay. Phase 15 now prepares the Controller and Build/Test Agent for the
-real CI stages with reporting plugins, Gitleaks, Testcontainers access, and
-persistent tool caches. The root `Jenkinsfile` remains a discovery placeholder
-until the CI stages are implemented later in Phase 15. Jenkins does not yet
-replace the existing GitHub Actions delivery path.
+Smee relay. Phase 15 implements the complete Jenkins CI sequence with reporting
+plugins, Gitleaks, Testcontainers access, and persistent tool caches. The root
+`Jenkinsfile` is now the revision-owned pipeline definition. Jenkins remains a
+parallel learning path and does not yet replace GitHub Actions delivery.
 
 ## Architecture
 
@@ -133,7 +132,7 @@ state; obtain them from the two node pages and update only the ignored local
 `.env` before starting the agent containers. Node identities are configuration
 as code, while their connection secrets remain runtime state.
 
-## Phase 15 CI runtime prerequisites
+## Phase 15 continuous integration
 
 The Build/Test Agent mounts the same Docker Desktop socket used by the Docker
 Agent, but it does not install the Docker CLI. Testcontainers' Java Docker client
@@ -149,8 +148,27 @@ is `root:root` with group read/write permission. The agent process remains user
 `GRADLE_USER_HOME` points Gradle at its named volume.
 `DEPENDENCY_CHECK_DATA_DIRECTORY` selects the separate NVD volume only in
 Jenkins. JCasC resolves `JENKINS_NVD_API_KEY` from the ignored local environment
-and creates credential ID `nvd-api-key`; the future `Jenkinsfile` will bind it
-as `NVD_API_KEY` only around Dependency-Check commands.
+and creates credential ID `nvd-api-key`; the `Jenkinsfile` binds it as
+`NVD_API_KEY` only around each Dependency-Check command.
+
+The Declarative Pipeline disables its implicit checkout and executes these
+stages in order on the `build-test` label:
+
+| Stage | Command or responsibility |
+|---|---|
+| Checkout | `checkout scm` retrieves the Multibranch-selected branch or PR revision once |
+| Build | `./gradlew clean assemble --no-daemon` compiles and packages without running later gates |
+| Test | runs the Testcontainers-backed test suite and always publishes JUnit XML |
+| Checkstyle | runs the existing Gradle gates, records XML through Warnings NG, and archives HTML/SARIF |
+| Runtime Dependency Check | scans `runtimeClasspath` with the shared CVSS `7.0` policy and archives every report |
+| Build Dependency Check | inventories and scans `buildPluginClasspath` with the shared policy and reviewed suppressions |
+| Gitleaks | scans Git history with `.gitleaks.toml`, redacts values, and archives JSON |
+
+Declarative stages fail fast: a failed command marks the run failed and skips
+later stages. Each publisher is in `post { always { ... } }` where diagnostics
+must survive the failure, so JUnit and security artifacts remain available.
+The classic build page exposes tests, recorded issues, stage logs, and archived
+reports without requiring Blue Ocean.
 
 After changing agent tooling, plugins, or JCasC, rebuild and recreate the
 affected services without removing volumes:
@@ -160,8 +178,9 @@ docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml build contr
 docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d --force-recreate controller build-test-agent
 ```
 
-The runtime preparation is verified, but the Phase 15 CI stages are not yet in
-the placeholder `Jenkinsfile`.
+Phase 15 verified a complete clean webhook run, controlled JUnit and Gitleaks
+failures, redacted secret artifacts, and cache reuse after agent recreation.
+See `docs/phase-15-verification.md` for the textual evidence.
 
 ## Historical Phase 13 manual bootstrap
 
@@ -356,7 +375,7 @@ not a conflicting UI edit, is the source of truth.
 
 ## Agent selection and manual verification
 
-Later pipelines will select agents by label:
+The current CI pipeline selects the Build/Test Agent by label:
 
 ```groovy
 agent { label 'build-test' }

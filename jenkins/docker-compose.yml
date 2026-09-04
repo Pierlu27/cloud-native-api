@@ -75,13 +75,16 @@ services:
     # Docker Engine is substantially more privileged than a normal build.
     build:
       context: ./docker-agent
-    image: cloud-native-api-jenkins-docker-agent:3386-docker29
+    image: cloud-native-api-jenkins-docker-agent:3386-docker29-trivy074
     environment:
       JENKINS_URL: http://controller:8080
       JENKINS_TUNNEL: controller:50000
       JENKINS_AGENT_NAME: docker-agent
       JENKINS_SECRET: ${JENKINS_DOCKER_AGENT_SECRET:?Set JENKINS_DOCKER_AGENT_SECRET in jenkins/.env}
       JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+      # Keep vulnerability databases, policy bundles, and scan metadata outside
+      # disposable workspaces and agent container layers.
+      TRIVY_CACHE_DIR: /home/jenkins/.cache/trivy
     depends_on:
       - controller
     # Docker Desktop exposes the mounted socket as root:root with group write
@@ -89,6 +92,9 @@ services:
     group_add:
       - "0"
     volumes:
+      # Reuse Trivy data after agent recreation instead of downloading it for
+      # every branch and pull-request scan.
+      - trivy_cache:/home/jenkins/.cache/trivy
       # Share the host daemon instead of starting a second Docker daemon in the
       # agent. Images and containers are therefore managed by Docker Desktop.
       - /var/run/docker.sock:/var/run/docker.sock
@@ -123,6 +129,8 @@ volumes:
     name: cloud-native-api-jenkins-gradle-cache
   dependency_check_data:
     name: cloud-native-api-jenkins-dependency-check-data
+  trivy_cache:
+    name: cloud-native-api-jenkins-trivy-cache
 
 networks:
   jenkins_network:

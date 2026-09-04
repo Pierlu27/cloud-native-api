@@ -23,8 +23,10 @@ RUN ./gradlew --no-daemon bootJar && cp $(find build/libs -name '*.jar' ! -name 
 # Use a lightweight JRE-only image to run the application.
 FROM eclipse-temurin:25-jre-alpine
 
-# Install the health-check utility and create an unprivileged runtime user.
-RUN apk add --no-cache curl \
+# Apply available Alpine security updates, install the health-check utility,
+# and create an unprivileged runtime user.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache curl \
     && addgroup --system appuser \
     && adduser --system --uid 10001 --ingroup appuser appuser
 

@@ -5,6 +5,7 @@ project_id                   = "your-gcp-project-id"
 billing_account_id           = "000000-000000-000000"
 billing_budget_amount        = 5
 billing_budget_currency      = "EUR"
+alert_notification_email     = "alerts@example.com"
 region                       = "europe-west8"
 service_name                 = "cloud-native-api"
 repository_name              = "cloud-native-api"

@@ -15,6 +15,7 @@ locals {
     development = {
       github_branch               = "develop"
       service_name                = "${var.service_name}-dev"
+      image_name                  = "${var.service_name}-dev"
       runtime_service_account_id  = "${var.service_name}-dev-runtime"
       deployer_service_account_id = "github-cloud-run-dev-deployer"
       # Keep the version of each secret independent so that rotating one value
@@ -31,6 +32,7 @@ locals {
     production = {
       github_branch               = "main"
       service_name                = "${var.service_name}-prod"
+      image_name                  = "${var.service_name}-prod"
       runtime_service_account_id  = "${var.service_name}-prod-runtime"
       deployer_service_account_id = "github-cloud-run-prod-deployer"
       # Keep the version of each secret independent so that rotating one value

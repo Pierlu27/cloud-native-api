@@ -266,13 +266,13 @@ jobs:
           path: build/reports/checkstyle
           if-no-files-found: warn
 
-  # Image publishing: deployable pushes or manual runs on either environment
-  # branch publish only after every build, test, security, and quality gate.
+  # Production image publishing: only main pushes or manual main runs publish,
+  # and only after every build, test, security, and quality gate.
   image-publish:
     name: Build and publish image
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') &&
+      github.ref == 'refs/heads/main' &&
       needs.changes.outputs.run_pipeline == 'true'
     needs:
       - changes
@@ -290,7 +290,7 @@ jobs:
       PROJECT_ID: project-c42baf60-7736-408b-9ff
       REGION: europe-west8
       REPOSITORY: cloud-native-api
-      IMAGE_NAME: cloud-native-api
+      IMAGE_NAME: cloud-native-api-prod
 
     steps:
       - name: Checkout
@@ -332,7 +332,7 @@ jobs:
       - image-publish
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+      github.ref == 'refs/heads/main'
     permissions:
       contents: read
       id-token: write
@@ -341,8 +341,8 @@ jobs:
       project_id: project-c42baf60-7736-408b-9ff
       region: europe-west8
       repository: cloud-native-api
-      image_name: cloud-native-api
-      deployment_environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+      image_name: cloud-native-api-prod
+      deployment_environment: production
       force_smoke_failure: ${{ inputs.force_smoke_failure || false }}
     secrets:
       WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}

@@ -9,7 +9,10 @@ alert_notification_email     = "alerts@example.com"
 region                       = "europe-west8"
 service_name                 = "cloud-native-api"
 repository_name              = "cloud-native-api"
-publisher_service_account_id = "github-artifact-publisher"
+
+publisher_service_account_id         = "github-artifact-publisher"
+jenkins_publisher_service_account_id = "jenkins-artifact-publisher"
+
 workload_identity_pool_id     = "github-actions"
 workload_identity_provider_id = "github"
 github_repository             = "Pierlu27/cloud-native-api"

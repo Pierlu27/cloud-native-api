@@ -400,3 +400,57 @@ to diagnose the first failure. Scoped CPE correction removes false product
 matches without weakening genuine vulnerability detection. Socket access
 remains effectively root-equivalent Docker host access, so both static agents
 accept only trusted repository jobs and the Jenkins stack remains local-only.
+
+## ADR-019 Jenkins container security and environment-specific publishing
+
+**Decision**: extend the Jenkins Docker Agent with a pinned Trivy binary copied
+from the official image and a persistent named cache. After its own checkout,
+the Docker Agent builds exactly one development image tagged with the full Git
+commit SHA, scans that image for `HIGH` and `CRITICAL` vulnerabilities, and
+scans the repository Terraform configuration for `HIGH` and `CRITICAL`
+misconfigurations. Both gates fail on a matching finding and always retain JSON
+and human-readable table reports as Jenkins build artifacts.
+
+Keep one Artifact Registry repository while assigning a separate package to
+each delivery system. Jenkins owns `cloud-native-api-dev`; it builds and scans
+trusted internal branches and same-repository pull requests, but authenticates
+and pushes the SHA plus that package's `latest` alias only for a successful
+direct `develop` build. GitHub Actions owns `cloud-native-api-prod`; it publishes
+the SHA plus its own `latest` alias and performs Cloud Run delivery only from
+`main`. Feature, pull-request, and Jenkins `main` jobs never receive the
+publisher credential. Deployments continue to select immutable SHA tags rather
+than `latest`.
+
+Use a dedicated `jenkins-artifact-publisher` service account with
+`roles/artifactregistry.writer` on the repository and no Cloud Run deployment
+permission. Because this local static Jenkins installation cannot reuse
+GitHub's Workload Identity Federation trust, store one manually created service
+account key as Base64 secret text in the ignored local Jenkins environment and
+register only its credential ID through JCasC. Bind it only inside the push
+stage, authenticate Docker through a temporary `DOCKER_CONFIG`, and remove that
+directory on every outcome. Do not generate the key with Terraform, because
+its private material would then enter Terraform state. Key creation requires a
+temporary, reviewed exception if the organization policy normally prohibits
+service-account keys; restore the policy immediately and rotate or delete the
+key when local publishing is no longer needed.
+
+**Reason**: the two Trivy gates detect risks that dependency scanning alone does
+not cover: vulnerabilities in the assembled runtime image and unsafe cloud
+configuration in Terraform. Pinned tooling and persistent databases make runs
+repeatable without downloading the vulnerability data from scratch, while
+retained reports make a failed gate diagnosable.
+
+Separate package names prevent Jenkins experiments from overwriting production
+tags even though both systems use the same inexpensive repository. Repository-
+level Artifact Registry IAM cannot enforce ownership of individual packages,
+so that separation remains a reviewed pipeline policy rather than a hard IAM
+boundary. Full-SHA tags preserve traceability and rollback; package-local
+`latest` aliases remain convenient for people but intentionally carry no
+deployment authority.
+
+The JSON key is a deliberately weaker local-development compromise than WIF:
+it is long-lived and must be protected and rotated. Its narrowly scoped service
+account, stage-local binding, temporary Docker configuration, restored
+organization policy, and trusted-repository-only Jenkins model reduce exposure
+without pretending to eliminate that risk. A hosted Jenkins installation
+should replace the key with a short-lived workload identity mechanism.

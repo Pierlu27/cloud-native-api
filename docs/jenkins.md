@@ -5,9 +5,11 @@ Phase 14 makes the Controller configuration reproducible through Jenkins
 Configuration as Code (JCasC), creates a GitHub Multibranch Pipeline through
 Job DSL, and connects GitHub events to the local Controller through a temporary
 Smee relay. Phase 15 implements the complete Jenkins CI sequence with reporting
-plugins, Gitleaks, Testcontainers access, and persistent tool caches. The root
-`Jenkinsfile` is now the revision-owned pipeline definition. Jenkins remains a
-parallel learning path and does not yet replace GitHub Actions delivery.
+plugins, Gitleaks, Testcontainers access, and persistent tool caches. Phase 16
+adds container build and Trivy security gates on the Docker Agent, then lets
+Jenkins publish development images while GitHub Actions retains production
+publishing and delivery. The root `Jenkinsfile` is the revision-owned pipeline
+definition.
 
 ## Architecture
 
@@ -20,7 +22,7 @@ Docker Desktop
 ├── build-test-agent
 │   └── executes Gradle, Gitleaks, and Testcontainers-backed test workloads
 ├── docker-agent
-│   └── executes Docker CLI operations against Docker Desktop
+│   └── builds, scans, and publishes development container images
 └── webhook-relay
     └── forwards GitHub events from a temporary Smee channel to Jenkins
 ```
@@ -49,7 +51,7 @@ The project owns four reproducible images:
   pinned Gitleaks binary. Gradle is supplied by the repository's versioned
   wrapper rather than installed globally; and
 - `jenkins/docker-agent/Dockerfile` combines the official inbound-agent runtime
-  with a pinned Docker CLI, Buildx, Compose, Git, and curl; and
+  with a pinned Docker CLI, Buildx, Compose, Git, curl, and Trivy `0.74.0`; and
 - `jenkins/webhook-relay/Dockerfile` installs the pinned official Smee client
   in a small Node image and runs it as the unprivileged `node` user.
 
@@ -75,6 +77,7 @@ workspaces:
 |---|---|---|
 | `cloud-native-api-jenkins-gradle-cache` | `/home/jenkins/.gradle` | Gradle Wrapper distributions, resolved dependencies, and reusable Gradle data |
 | `cloud-native-api-jenkins-dependency-check-data` | `/home/jenkins/.dependency-check-data` | NVD vulnerability data used by both Dependency-Check tasks |
+| `cloud-native-api-jenkins-trivy-cache` | `/home/jenkins/.cache/trivy` | Trivy vulnerability databases, Java database, policy checks, and scan metadata |
 
 The Gradle volume does not select the Gradle version; the repository-owned
 Wrapper remains authoritative. The NVD volume replaces only Jenkins's default
@@ -86,19 +89,21 @@ the local Jenkins installation is intentional:
 
 ```text
 docker compose down       -> removes containers/network, keeps all named volumes
-docker compose down -v    -> also removes Controller, Gradle, and NVD volume data
+docker compose down -v    -> also removes Controller, Gradle, NVD, and Trivy volume data
 ```
 
 ## Current JCasC bootstrap
 
 Copy `jenkins/agent-secrets.env.example` to the ignored `jenkins/.env` and
-replace every placeholder. The local file supplies five different categories:
+replace every placeholder. The local file supplies six different categories:
 
 - administrator identity and password used by JCasC;
 - GitHub username and fine-grained token used for discovery, checkout, and
   commit status publication;
 - the existing NVD API key, registered separately as Jenkins secret-text
   credential `nvd-api-key` because Jenkins cannot read GitHub Actions secrets;
+- the Base64-encoded Jenkins publisher key, registered as secret-text
+  credential `artifact-registry-publisher-key-base64`;
 - the two Jenkins-generated inbound-agent secrets; and
 - the temporary Smee channel URL used by the webhook relay.
 
@@ -181,6 +186,102 @@ docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d --for
 Phase 15 verified a complete clean webhook run, controlled JUnit and Gitleaks
 failures, redacted secret artifacts, and cache reuse after agent recreation.
 See `docs/phase-15-verification.md` for the textual evidence.
+
+## Phase 16 container security and development publishing
+
+The Declarative Pipeline now uses `agent none` at its root and assigns two
+independent stage groups to the capability they require:
+
+```text
+Continuous Integration                     Container Security & Publishing
+        │                                                │
+        ▼                                                ▼
+build-test-agent                                  docker-agent
+Checkout -> Gradle and Phase 15 gates       Checkout -> derive full SHA
+                                            -> Docker Build
+                                            -> Trivy Image Scan
+                                            -> Trivy IaC Scan
+                                            -> conditional Docker Push
+```
+
+The second checkout is required because static agents have separate
+workspaces. The Docker Agent derives the exact revision with `git rev-parse
+HEAD`, rejects anything other than 40 lowercase hexadecimal characters, and
+builds only:
+
+```text
+europe-west8-docker.pkg.dev/<project>/cloud-native-api/cloud-native-api-dev:<full-SHA>
+```
+
+Trivy Image Scan evaluates application-image operating-system and language
+packages with `--scanners vuln`. Trivy IaC Scan parses `terraform/` with the
+non-secret `terraform.tfvars.example` values and evaluates its built-in
+misconfiguration rules. Both gates select `HIGH,CRITICAL`, first write a JSON
+source report, and then convert that report to a readable table while applying
+exit code `1`. Each stage archives both formats from `post { always { ... } }`,
+so its diagnostic evidence survives a blocking result.
+
+The persistent Trivy volume avoids downloading the vulnerability databases,
+Java database, and checks bundle for every disposable workspace or agent
+container. A single Docker Agent executor keeps the sequential scans from
+contending for the same cache lock.
+
+Publishing follows this branch policy:
+
+| Jenkins job context | Build and both Trivy scans | Push development SHA and `latest` |
+|---|---:|---:|
+| internal feature branch | yes | no |
+| internal pull request | yes | no |
+| direct `develop` branch | yes | yes |
+| direct `main` branch | yes | no |
+| fork pull request | not discovered | no |
+
+Jenkins owns the `cloud-native-api-dev` package. GitHub Actions owns the
+`cloud-native-api-prod` package and remains the production deployer. Both
+packages live in the same Artifact Registry repository, so their names and
+separate publisher identities establish operational ownership, not a hard IAM
+boundary between packages. Cloud Run delivery always selects the immutable SHA
+tag; each package's `latest` tag is only a convenience alias.
+
+### Artifact Registry authentication
+
+Terraform creates `jenkins-artifact-publisher` and grants it
+`roles/artifactregistry.writer` on the existing application repository, but it
+never creates or accepts the private key. The local Jenkins installation has no
+trusted external OIDC issuer, so Phase 16 explicitly accepts one out-of-band
+service-account key as a local-only fallback.
+
+The ignored `jenkins/.env` passes its Base64 form to the Controller. JCasC
+registers it under stable credential ID
+`artifact-registry-publisher-key-base64`; only the `Docker Push` stage binds it
+to `ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64`. Base64 is transport encoding, not
+encryption.
+
+The push stage uses `_json_key_base64` with `docker login --password-stdin` and
+a new temporary `DOCKER_CONFIG` directory. A shell `trap` always logs out and
+removes `config.json`, whether either push succeeds or fails. Consequently the
+credential is not stored in the Docker Agent image, workspace, archived
+reports, normal console output, or persistent Docker configuration.
+
+The key is long-lived and must be treated like a password. Rotate it by
+creating a second key outside Terraform, replacing the Base64 value in the
+ignored `.env`, recreating the Controller, verifying one successful
+direct `develop` publication, and only then deleting the old key by ID:
+
+```bash
+gcloud iam service-accounts keys list \
+  --iam-account=jenkins-artifact-publisher@PROJECT_ID.iam.gserviceaccount.com \
+  --managed-by=user
+
+gcloud iam service-accounts keys delete KEY_ID \
+  --iam-account=jenkins-artifact-publisher@PROJECT_ID.iam.gserviceaccount.com
+```
+
+If exposure is suspected, disable the affected key immediately, replace the
+credential, and delete the compromised key after recovery. Delete every
+user-managed key when the local Jenkins publisher is retired. An organization
+policy can prohibit key creation; any approved temporary exception must be
+removed immediately after creating the replacement key.
 
 ## Historical Phase 13 manual bootstrap
 
@@ -287,7 +388,7 @@ Controller is ready. The inbound-agent process retries automatically; a final
 - both permanent-node definitions and their labels, remote roots, launchers,
   executor counts, and Remoting work-directory settings;
 - the local security realm and authorization policy;
-- the GitHub credential metadata; and
+- the GitHub, NVD, and Artifact Registry credential metadata; and
 - the `cloud-native-api` Multibranch parent job.
 
 The real administrator password and GitHub token are never present in the
@@ -306,8 +407,11 @@ manually. This keeps the write capability limited to build-result reporting.
 ## Multibranch discovery and checkout
 
 Job DSL creates the `cloud-native-api` Multibranch parent. Its GitHub source
-discovers internal branches and pull requests and accepts a revision only when
-it contains the root `Jenkinsfile`.
+discovers internal branches and same-repository pull requests and accepts a
+revision only when it contains the root `Jenkinsfile`. Fork pull requests are
+not enabled. Internal branch authors are trusted because a branch-controlled
+`Jenkinsfile` executes on agents with Docker socket access and can reference
+Controller credentials by ID.
 
 The branch strategy builds branches that are not also represented by an open
 pull request. Once a PR exists, Jenkins avoids executing the same change twice:
@@ -375,7 +479,7 @@ not a conflicting UI edit, is the source of truth.
 
 ## Agent selection and manual verification
 
-The current CI pipeline selects the Build/Test Agent by label:
+The current pipeline assigns each parent stage group to a dedicated label:
 
 ```groovy
 agent { label 'build-test' }

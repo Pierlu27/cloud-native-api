@@ -39,6 +39,17 @@ resource "google_service_account" "publisher" {
   display_name = "GitHub Actions Artifact Registry publisher"
 }
 
+# Creates the separate identity used by local Jenkins to publish development
+# images. Its long-lived private key is created and rotated outside Terraform so
+# credential material never enters the Terraform state.
+
+resource "google_service_account" "jenkins_publisher" {
+  project      = var.project_id
+  account_id   = var.jenkins_publisher_service_account_id
+  display_name = "Local Jenkins Artifact Registry publisher"
+  description  = "Identity used by local Jenkins to publish development images."
+}
+
 # Manages the namespace used to represent GitHub identities in Google Cloud.
 
 # The pool alone grants no permissions and validates no tokens. Its OIDC

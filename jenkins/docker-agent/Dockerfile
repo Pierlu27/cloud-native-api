@@ -1,3 +1,9 @@
+ARG TRIVY_VERSION=0.74.0
+
+# Copy the pinned scanner from its official image instead of downloading an
+# unverified binary or installing a second package repository in the agent.
+FROM aquasec/trivy:${TRIVY_VERSION} AS trivy
+
 # Source the versioned Docker client and its Buildx/Compose CLI plugins without
 # carrying a second Docker daemon into the Jenkins agent image.
 FROM docker:29.7.2-cli AS docker_cli
@@ -10,6 +16,7 @@ USER root
 
 COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker_cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 
 # Git retrieves the source repository and curl supports later registry and
 # delivery diagnostics. The agent connects to Docker Desktop through the host
@@ -19,6 +26,8 @@ RUN apt-get update \
         ca-certificates \
         curl \
         git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /home/jenkins/.cache/trivy \
+    && chown -R jenkins:jenkins /home/jenkins/.cache/trivy
 
 USER jenkins

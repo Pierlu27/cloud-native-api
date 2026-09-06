@@ -73,6 +73,11 @@ credentials:
               id: "nvd-api-key"
               description: "NVD API key for Jenkins Dependency-Check stages"
               secret: "${JENKINS_NVD_API_KEY}"
+          - string:
+              scope: GLOBAL
+              id: "artifact-registry-publisher-key-base64"
+              description: "Base64 service-account key for publishing development images to Artifact Registry"
+              secret: "${ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64}"
 
 # Job DSL owns the reproducible Multibranch parent job. Branch and pull-request
 # child jobs are discovered from GitHub and execute the Jenkinsfile stored in

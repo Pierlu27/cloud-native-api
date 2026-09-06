@@ -2,24 +2,27 @@
 
 ## Responsibility split
 
-The repository uses three related but separate processes:
+The repository uses four related but separate processes:
 
-1. GitHub Actions validates the application, publishes an immutable image
-   through the publisher identity, and deploys it through the separate deployer
-   identity for the target environment. A deployable commit on `develop`
-   targets development; one on `main` targets production.
-2. Terraform declares and reconciles the GCP infrastructure and IAM. After the
+1. Jenkins validates trusted internal branches and pull requests. A clean
+   direct `develop` build publishes the immutable development image through its
+   dedicated publisher, but Phase 16 does not yet deploy that image.
+2. GitHub Actions retains its validation jobs for `develop` and `main`. Only a
+   clean direct or manually dispatched `main` run publishes the production
+   image and deploys it through the production deployer identity.
+3. Terraform declares and reconciles the GCP infrastructure and IAM. After the
    initial Cloud Run bootstrap it deliberately ignores each environment's
    selected image, explicit revision name, known workflow traceability labels,
    and traffic, which belong to the delivery workflow.
-3. Cloud Run starts each selected image as that environment's runtime service
+4. Cloud Run starts each selected image as that environment's runtime service
    account, resolves its pinned database secret versions at container startup,
    and connects to the corresponding Supabase database.
 
 Terraform is still executed manually: it does not watch Git commits, start
-GitHub Actions, build images, or run deployments. GitHub Actions does not run
-Terraform in Phase 10 and therefore cannot silently change Terraform-managed
-probes, scaling, resources, runtime identity, or numeric secret references.
+GitHub Actions or Jenkins, build images, or run deployments. Neither CI system
+runs Terraform in Phase 16 and therefore cannot silently change
+Terraform-managed probes, scaling, resources, runtime identity, or numeric
+secret references.
 
 ### Structural updates after a workflow-named revision
 
@@ -66,17 +69,19 @@ and one Artifact Registry repository. The shared project keeps the learning
 environment inexpensive; environment-specific Cloud Run services, identities,
 secrets, and Supabase projects provide the required operational boundary.
 
-| Branch | GitHub Environment | Cloud Run service | Deployment approval | Database |
+| Branch | Image publisher and package | Cloud Run service | Phase 16 delivery | Database |
 | --- | --- | --- | --- | --- |
-| `develop` | `development` | `cloud-native-api-dev` | automatic | dedicated development Supabase project |
-| `main` | `production` | `cloud-native-api-prod` | required reviewer | dedicated production Supabase project |
+| `develop` | Jenkins -> `cloud-native-api-dev` | `cloud-native-api-dev` | deferred to Phase 17; last healthy revision remains active | dedicated development Supabase project |
+| `main` | GitHub Actions -> `cloud-native-api-prod` | `cloud-native-api-prod` | production reviewer, smoke test, and promotion | dedicated production Supabase project |
 
 The intended promotion path is:
 
 ```text
-feature branch -> pull request to develop -> automatic development deployment
-               -> verification -> pull request from develop to main
-               -> production approval -> production deployment
+feature branch -> pull request to develop -> validation
+               -> merge to develop -> Jenkins publishes development image
+               -> Phase 17 will add development deployment and verification
+               -> pull request from develop to main
+               -> production approval -> GitHub production deployment
 ```
 
 Both GitHub Environments expose only non-sensitive deployment metadata:
@@ -88,11 +93,17 @@ Both GitHub Environments expose only non-sensitive deployment metadata:
 | `production` | `CLOUD_RUN_SERVICE` | `cloud-native-api-prod` |
 | `production` | `WIF_DEPLOYER_SERVICE_ACCOUNT` | `github-cloud-run-prod-deployer@project-c42baf60-7736-408b-9ff.iam.gserviceaccount.com` |
 
-The repository-level WIF configuration authenticates the shared image
+The development values remain provisioned as historical infrastructure but are
+not selected by the Phase 16 GitHub workflow. The production values remain
+active.
+
+The repository-level WIF configuration authenticates the GitHub image
 publisher through `WIF_SERVICE_ACCOUNT` and identifies the Google WIF provider
-through `WIF_PROVIDER`. Database URLs, usernames, and passwords are not
-duplicated in GitHub: they remain exclusively in three environment-specific
-Secret Manager containers per environment.
+through `WIF_PROVIDER`. Phase 16 uses that publisher only for the production
+package. Jenkins authenticates its separate development publisher through the
+local Credentials Store described in `jenkins.md`. Database URLs, usernames,
+and passwords are not duplicated in either CI system: they remain exclusively
+in three environment-specific Secret Manager containers per environment.
 
 The historical unsuffixed `cloud-native-api` service was retained temporarily
 as a rollback target while the new production path was verified. It was not a
@@ -101,13 +112,14 @@ procedure documented below on 2026-08-24.
 
 ### Identity and configuration boundaries
 
-The shared publisher can write immutable images to the one Artifact Registry
-repository but cannot deploy Cloud Run services. Deployment and runtime access
-are then separated per environment:
+The GitHub and Jenkins publishers can write images to the one Artifact Registry
+repository but cannot deploy Cloud Run services. Their package ownership is
+enforced by pipeline policy rather than package-level IAM. Deployment and
+runtime access remain separated per environment:
 
-- the development workflow may impersonate only
-  `github-cloud-run-dev-deployer`; that deployer may update only
-  `cloud-native-api-dev` and attach only the development runtime identity;
+- the retained `github-cloud-run-dev-deployer` may be impersonated only by its
+  mapped development identity; it may update only `cloud-native-api-dev` and
+  attach only the development runtime identity;
 - the production workflow may impersonate only
   `github-cloud-run-prod-deployer`; that deployer may update only
   `cloud-native-api-prod` and attach only the production runtime identity;
@@ -154,7 +166,10 @@ cp terraform.tfvars.example terraform.tfvars
 
 Set the project, region, resource names, repository and branch identity, and the
 full 40-character Git commit SHA of an image that already exists in Artifact
-Registry. Do not add a database URL, username, password, access token, or key.
+Registry. A completely new target that creates both services requires that
+bootstrap tag in both `cloud-native-api-dev` and `cloud-native-api-prod`, because
+the current Terraform input intentionally retains one initial `image_tag`. Do
+not add a database URL, username, password, access token, or key.
 
 `terraform.tfvars` answers the variable declarations in `variables.tf` before
 Terraform can calculate a plan. The example is documentation only; Terraform
@@ -395,19 +410,26 @@ Terraform resources does not disable shared project APIs.
 
 ## Artifact Registry publishing
 
-The `image-publish` GitHub Actions job runs for deployable pushes or manual runs
-on `develop` and `main`, after the build, test, dependency, secret, and
-static-analysis jobs succeed. A documentation-only push is excluded before a
+Jenkins builds and scans `cloud-native-api-dev:<full-SHA>` for each discovered
+trusted internal branch and same-repository pull request. It binds the local
+publisher credential and pushes the SHA plus the package-local `latest` alias
+only for a direct `develop` build after every earlier gate succeeds. Feature,
+pull-request, and `main` jobs never authenticate to Artifact Registry.
+
+The GitHub Actions `image-publish` job runs only for a direct push or manual run
+on `main`, after its build, test, dependency, secret, and static-analysis jobs
+succeed. It publishes `cloud-native-api-prod:<GITHUB_SHA>` and the production
+package's `latest` alias. A documentation-only push is excluded before a
 workflow run is created; a documentation-only pull request retains the change
 classification and secret-scan checks without rebuilding an unchanged image.
-The publisher job exchanges a GitHub OIDC token through Workload Identity
-Federation and impersonates the shared publisher service account; no long-lived
-JSON key is stored in GitHub.
+GitHub exchanges an OIDC token through Workload Identity Federation and stores
+no long-lived JSON key.
 
-The publisher has `roles/artifactregistry.writer` only on the
-`cloud-native-api` repository. Each image receives its immutable commit SHA and
-the `latest` convenience alias. The SHA remains the traceability and rollback
-source of truth.
+Both publishers have `roles/artifactregistry.writer` only on the shared
+`cloud-native-api` repository. The full SHA remains the deployment,
+traceability, and rollback source of truth; `latest` is never a deployment
+target. The Jenkins key is an accepted local fallback and follows the handling
+and rotation runbook in `jenkins.md`.
 
 Phase 5 verified image tag
 `a036cb9425a4d4fff1191cfdb37a523164c79706` with manifest digest
@@ -415,24 +437,20 @@ Phase 5 verified image tag
 
 ## Automated Cloud Run delivery
 
-`.github/workflows/ci.yml` is the orchestrator: it owns the repository events,
-change classification, quality gates, image publication, and the dependency
-between publication and deployment. After `image-publish` succeeds, it calls
-the reusable `.github/workflows/cloud-run-deploy.yml` workflow. `workflow_call`
+`.github/workflows/ci.yml` remains the production delivery orchestrator. After
+its main-only `image-publish` job succeeds, it calls the reusable
+`.github/workflows/cloud-run-deploy.yml` workflow with package
+`cloud-native-api-prod` and GitHub Environment `production`. `workflow_call`
 means that the second file cannot deploy independently; it receives its GCP
-resource names, selected GitHub Environment, WIF provider, and optional
-controlled-failure input from the caller.
+resource names, WIF provider, and optional controlled-failure input from the
+caller.
 
-The caller maps `develop` to `development` and `main` to `production`. The
-reusable deployment job declares that selected GitHub Environment through its
-`environment:` key, then reads `CLOUD_RUN_SERVICE` and
-`WIF_DEPLOYER_SERVICE_ACCOUNT` from the matching environment variables. The
-development job starts without an approval gate. The production job must wait
-for its configured reviewer, and administrators cannot bypass that rule.
-
-Deployments are serialized independently per GitHub Environment. A running
-development deployment does not block production, while two deployments to the
-same environment cannot promote competing candidates concurrently.
+The reusable job reads `CLOUD_RUN_SERVICE` and
+`WIF_DEPLOYER_SERVICE_ACCOUNT` from the production GitHub Environment. It must
+wait for the configured reviewer, and administrators cannot bypass that rule.
+Production deployments share one concurrency group, so two runs cannot promote
+competing candidates. Development delivery is deliberately inactive between
+Phases 16 and 17.
 
 The reusable workflow performs this sequence:
 
@@ -470,7 +488,7 @@ the full commit SHA, immutable image reference, revision name, candidate tag,
 and GitHub Actions run URL.
 
 The manual `workflow_dispatch` input `force_smoke_failure` supports a controlled
-failure exercise on `develop` or `main`. When set to `true`, the workflow first
+production failure exercise on `main`. When set to `true`, the workflow first
 calls the real smoke-test endpoints and then deliberately exits with an error.
 The promotion step is skipped, that environment's normal traffic stays on the
 previous revision, and the `always()` cleanup step removes the temporary tag.
@@ -483,7 +501,9 @@ Phase 8 adopted the historical service and created baseline revision
 Manager references. Phase 10 provisions `cloud-native-api-dev` and
 `cloud-native-api-prod` with the same Terraform-managed operational baseline,
 but with separate runtime identities and separate numeric secret references.
-The delivery workflow creates subsequent immutable revisions without replacing:
+The production delivery workflow creates subsequent immutable production
+revisions. During the Phase 16-to-17 transition, development retains its last
+healthy revision. Neither path replaces:
 
 - the runtime service account and numeric Secret Manager references
 - public invocation through the additive `allUsers` invoker member
@@ -590,10 +610,10 @@ changes, so a later plan must not attempt to undo this rollback. The next
 successful application deploy will create and validate a new revision before
 moving traffic forward again.
 
-## Phase 10 acceptance and staged legacy retirement
+## Historical Phase 10 acceptance and staged legacy retirement
 
-The configuration alone does not prove that the new delivery path works. Close
-the phase through the real branch flow:
+At Phase 10, the configuration alone did not prove that the new delivery path
+worked. The phase was closed through this real branch flow:
 
 1. Open a pull request from the feature branch to `develop` and require the CI
    gates to pass. Pull-request validation does not deploy.

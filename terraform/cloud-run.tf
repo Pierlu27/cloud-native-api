@@ -1,6 +1,6 @@
 # Creates one Cloud Run service that executes the application container for
-# each environment. Both services share the same image and operational
-# baseline, while their names, runtime identities, database secrets, and
+# each environment. Both services share the same operational baseline, while
+# their image packages, names, runtime identities, database secrets, and
 # deletion protection are selected independently from the environment model.
 
 resource "google_cloud_run_v2_service" "environment" {
@@ -31,7 +31,7 @@ resource "google_cloud_run_v2_service" "environment" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.application.repository_id}/${var.service_name}:${var.image_tag}"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.application.repository_id}/${each.value.image_name}:${var.image_tag}"
 
       ports {
         container_port = 8080

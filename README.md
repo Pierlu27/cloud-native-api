@@ -5,9 +5,10 @@ cloud-native CI/CD platform on Google Cloud. The repository is intentionally
 educational: every phase starts from explicit requirements, records technical
 decisions, and retains text-based verification evidence.
 
-Phases 0-15 are complete. Phase 16 implementation adds Jenkins container and
-Terraform security gates plus development-image publishing; its final
-`develop` and `main` integration evidence is still being collected.
+Phases 0-16 are complete. Jenkins provides container and Terraform security
+gates plus development-image publishing; GitHub Actions retains production
+publishing and delivery. Both paths have been verified through real branch
+integrations.
 
 ## What the project demonstrates
 
@@ -351,8 +352,8 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
   management.
 - **Phases 13-15 complete**: Jenkins Controller/Agent bootstrap, configuration
   as code, GitHub integration, and continuous integration.
-- **Phase 16 implementation complete, integration verification in progress**:
-  Trivy container/IaC gates and Jenkins development-image publishing.
+- **Phase 16 complete**: Trivy container/IaC gates, verified Jenkins development
+  publishing, and GitHub Actions production publishing and delivery.
 - **Phase 17 planned**: Jenkins development deployment extends the separate
   learning track without replacing GitHub Actions production delivery or the
   Terraform ownership model.

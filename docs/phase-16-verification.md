@@ -1,12 +1,10 @@
 # Phase 16 container security and artifact publishing verification
 
-Verification window: 2026-09-04 onward.
+Verification window: 2026-09-04 through 2026-09-06.
 
-Phase 16 implementation is complete on the feature branch. The local Jenkins
-security gates, controlled failures, report publication, and persistent cache
-have been verified. Direct `develop` and `main` publishing evidence remains
-pending until the reviewed branch integrations described at the end of this
-document are executed.
+Phase 16 is complete. Jenkins security gates, controlled failures, report
+publication, persistent cache, development publishing, and GitHub Actions
+production delivery were verified through the real branch integration path.
 
 Evidence is recorded textually; screenshots are optional and are not required
 to establish the results below.
@@ -139,28 +137,78 @@ package and production to the prod package. Its existing lifecycle boundary
 continues to ignore subsequent pipeline-owned image, revision, label, and
 traffic changes.
 
-## Pending completion evidence
+## Development integration and publication
 
-The following checks intentionally require the real integration path and must
-be recorded before Phase 16 is marked complete:
+[PR #50](https://github.com/Pierlu27/cloud-native-api/pull/50) passed GitHub
+Actions and Jenkins feature build 2 and PR-50 build 1 before merging into
+`develop`. Merge commit `dbcacca800012021fbac90249f7153b9e0cc43d6` triggered
+Jenkins `develop` build 4, which passed every gate, archived all four Trivy
+reports, and completed Docker Push successfully.
 
-1. Merge into `develop` and verify that Jenkins publishes
-   `cloud-native-api-dev:<full-SHA>` plus `cloud-native-api-dev:latest`, while
-   GitHub Actions runs validation but skips image publishing and Cloud Run
-   delivery.
-2. Merge `develop` into `main` and verify that Jenkins builds and scans but
-   skips Docker Push, while GitHub Actions publishes
-   `cloud-native-api-prod:<full-SHA>` plus `cloud-native-api-prod:latest` and
-   deploys production from the immutable SHA.
-3. List Artifact Registry packages and tags, confirming separate dev and prod
-   packages and their independent `latest` aliases.
-4. Inspect the successful publishing run without printing the secret and
-   confirm that no key material remains in source, logs, archived reports,
-   agent images, or the persistent Docker configuration.
+[GitHub Actions run 34026236611](https://github.com/Pierlu27/cloud-native-api/actions/runs/34026236611)
+passed all validation jobs on the same commit. Both `Build and publish image`
+and `Deploy candidate and promote` were skipped, confirming development
+publication belongs to Jenkins.
 
-## Current result
+## Production integration and delivery
 
-The implementation, clean no-push path, both independent Trivy failure gates,
-unconditional report publication, identity boundary, and real cache persistence
-are verified. Phase 16 remains open only for the branch-dependent publication,
-production-delivery, final registry, and post-push credential-cleanup evidence.
+[PR #51](https://github.com/Pierlu27/cloud-native-api/pull/51) passed GitHub
+Actions and Jenkins PR-51 build 1 before merging `develop` into `main`.
+Merge commit `1a1c208b2902fdeb46c3ad82bb04e77aaf358494` triggered Jenkins
+`main` build 3. It passed both Trivy gates, archived all four reports, and
+explicitly skipped Docker Push because of its branch condition.
+
+[GitHub Actions run 34026625556](https://github.com/Pierlu27/cloud-native-api/actions/runs/34026625556)
+completed successfully, including production publication, candidate deployment,
+smoke testing, promotion, serving-traffic verification, and candidate-tag
+cleanup. A direct Cloud Run read confirmed:
+
+```text
+Revision: cloud-native-api-prod-sha-1a1c208b-run-34026625556
+Ready:    True
+Traffic:  100% to that exact revision
+Tags:     no remaining candidate tag
+```
+
+The revision's resolved image digest matched the production registry digest
+below. Development retained 100% traffic on
+`cloud-native-api-dev-sha-6a3241b2-run-33781019836`; Phase 16 did not deploy its
+newly published image.
+
+## Final Artifact Registry evidence
+
+Both packages exist inside repository `cloud-native-api`, region
+`europe-west8`, project `project-c42baf60-7736-408b-9ff`:
+
+| Package | Full commit-SHA tag | Additional tag | Digest |
+| --- | --- | --- | --- |
+| `cloud-native-api-dev` | `dbcacca800012021fbac90249f7153b9e0cc43d6` | `latest` | `sha256:964a288cd7c0eff7eefabfd950a5dbd96be91002c5c54215ea630b9953c6a963` |
+| `cloud-native-api-prod` | `1a1c208b2902fdeb46c3ad82bb04e77aaf358494` | `latest` | `sha256:3db85e9283f6ceb3255bd9244acc44edfec08ad64ccc901dc5aceb1620bdb407` |
+
+Within each package, SHA and `latest` resolved to the same digest at verification
+time. Production used the immutable image resolved from its SHA tag.
+
+## Post-push credential checks
+
+Jenkins `develop` build 4 recorded successful authentication, both pushed
+digests, the cleanup trap, Docker logout, and removal of its temporary
+configuration directory. A direct agent check found no remaining
+`/tmp/jenkins-docker-config.*` directory and no
+`/home/jenkins/.docker/config.json`.
+
+A non-disclosing in-memory comparison checked the real Base64 credential, a
+private-key body fragment, and Docker's encoded authentication representation.
+It found zero matches in tracked source files, the development build log and
+archived artifacts, or Docker Agent image metadata and build history. The
+image recipe accepts no publisher credential; the value is supplied at runtime
+through the scoped push binding. This check records the inspected surfaces,
+not a forensic scan of every image layer or every historical build.
+
+## Result
+
+The real development and production runs confirm complementary publisher
+ownership, SHA/latest package separation, production delivery by SHA, and
+post-push cleanup. Together with the clean no-push runs, independent Trivy
+failure gates, retained reports, and cache-recreation test, these results close
+the Phase 16 acceptance criteria. Jenkins development deployment remains
+Phase 17 work.

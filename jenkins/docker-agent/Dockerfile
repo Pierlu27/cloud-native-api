@@ -1,8 +1,19 @@
 ARG TRIVY_VERSION=0.74.0
+ARG GOOGLE_CLOUD_CLI_VERSION=584.0.0
+ARG JQ_VERSION=1.8.2
 
 # Copy the pinned scanner from its official image instead of downloading an
 # unverified binary or installing a second package repository in the agent.
 FROM aquasec/trivy:${TRIVY_VERSION} AS trivy
+
+# Source the pinned deployment CLI from Google's official stable image. The
+# bundled Python runtime travels with the SDK, so the final agent does not rely
+# on a separately installed system Python version.
+FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:${GOOGLE_CLOUD_CLI_VERSION}-stable AS google_cloud_cli
+
+# Source the pinned static JSON processor from its official multi-architecture
+# image. Jenkins uses it to read revision and traffic fields returned by gcloud.
+FROM ghcr.io/jqlang/jq:${JQ_VERSION} AS jq
 
 # Source the versioned Docker client and its Buildx/Compose CLI plugins without
 # carrying a second Docker daemon into the Jenkins agent image.
@@ -17,10 +28,14 @@ USER root
 COPY --from=docker_cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker_cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
 COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+COPY --from=google_cloud_cli /usr/lib/google-cloud-sdk /usr/lib/google-cloud-sdk
+COPY --from=jq /jq /usr/local/bin/jq
 
-# Git retrieves the source repository and curl supports later registry and
-# delivery diagnostics. The agent connects to Docker Desktop through the host
-# socket mounted by Compose; no daemon is installed in this image.
+ENV PATH="/usr/lib/google-cloud-sdk/bin:${PATH}"
+
+# Git retrieves the source repository and curl supports registry, smoke-test,
+# and delivery diagnostics. The agent connects to Docker Desktop through the
+# host socket mounted by Compose; no daemon is installed in this image.
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         ca-certificates \

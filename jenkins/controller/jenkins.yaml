@@ -78,6 +78,11 @@ credentials:
               id: "artifact-registry-publisher-key-base64"
               description: "Base64 service-account key for publishing development images to Artifact Registry"
               secret: "${ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64}"
+          - string:
+              scope: GLOBAL
+              id: "cloud-run-dev-deployer-key-base64"
+              description: "Base64 service-account key for deploying the development Cloud Run service"
+              secret: "${JENKINS_CLOUD_RUN_DEV_DEPLOYER_KEY_BASE64}"
 
 # Job DSL owns the reproducible Multibranch parent job. Branch and pull-request
 # child jobs are discovered from GitHub and execute the Jenkinsfile stored in

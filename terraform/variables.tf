@@ -92,6 +92,17 @@ variable "jenkins_publisher_service_account_id" {
   }
 }
 
+variable "jenkins_deployer_service_account_id" {
+  description = "Account ID of the service account used by local Jenkins to deploy the development Cloud Run service."
+  type        = string
+  default     = "jenkins-cloud-run-dev-deployer"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.jenkins_deployer_service_account_id))
+    error_message = "jenkins_deployer_service_account_id must be 6-30 characters, start with a lowercase letter, end with a lowercase letter or digit, and contain only lowercase letters, digits, or hyphens."
+  }
+}
+
 variable "workload_identity_pool_id" {
   description = "ID of the Workload Identity Pool used by GitHub Actions."
   type        = string

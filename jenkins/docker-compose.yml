@@ -27,6 +27,7 @@ services:
       JENKINS_GITHUB_TOKEN: ${JENKINS_GITHUB_TOKEN:?Set JENKINS_GITHUB_TOKEN in jenkins/.env}
       JENKINS_NVD_API_KEY: ${JENKINS_NVD_API_KEY:?Set JENKINS_NVD_API_KEY in jenkins/.env}
       ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64: ${ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64:?Set ARTIFACT_REGISTRY_PUBLISHER_KEY_BASE64 in jenkins/.env}
+      JENKINS_CLOUD_RUN_DEV_DEPLOYER_KEY_BASE64: ${JENKINS_CLOUD_RUN_DEV_DEPLOYER_KEY_BASE64:?Set JENKINS_CLOUD_RUN_DEV_DEPLOYER_KEY_BASE64 in jenkins/.env}
     restart: unless-stopped
     networks:
       - jenkins_network
@@ -76,7 +77,7 @@ services:
     # Docker Engine is substantially more privileged than a normal build.
     build:
       context: ./docker-agent
-    image: cloud-native-api-jenkins-docker-agent:3386-docker29-trivy074
+    image: cloud-native-api-jenkins-docker-agent:3386-docker29-trivy074-gcloud584-jq182
     environment:
       JENKINS_URL: http://controller:8080
       JENKINS_TUNNEL: controller:50000

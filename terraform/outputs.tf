@@ -35,6 +35,13 @@ output "environment_runtime_service_account_emails" {
   }
 }
 
+# Exposes the Jenkins development deployer identity for out-of-band key setup.
+
+output "jenkins_deployer_service_account_email" {
+  description = "Email of the development-only Cloud Run deployer used by local Jenkins."
+  value       = google_service_account.jenkins_deployer.email
+}
+
 # Exposes whether Google Monitoring considers the alert email channel usable.
 
 output "alert_notification_channel_verification_status" {

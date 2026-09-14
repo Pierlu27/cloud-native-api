@@ -5,10 +5,10 @@ cloud-native CI/CD platform on Google Cloud. The repository is intentionally
 educational: every phase starts from explicit requirements, records technical
 decisions, and retains text-based verification evidence.
 
-Phases 0-16 are complete. Jenkins provides container and Terraform security
-gates plus development-image publishing; GitHub Actions retains production
-publishing and delivery. Both paths have been verified through real branch
-integrations.
+Phases 0-16 are complete. Phase 17 development delivery is implemented and
+verified on `develop`, with its final `main` exclusion observation pending
+integration. Jenkins owns development publishing and delivery; GitHub Actions
+retains production publishing and delivery.
 
 ## What the project demonstrates
 
@@ -33,7 +33,7 @@ integrations.
 - a Jenkins CI pipeline with tests, Checkstyle, dependency scans, full-history
   secret scanning, archived reports, and GitHub commit statuses; and
 - pinned Trivy image/IaC gates, a persistent vulnerability cache, and
-  least-privilege Jenkins publishing of the development image.
+  least-privilege Jenkins publishing and delivery of the development image.
 
 ## Working approach
 
@@ -61,8 +61,10 @@ Feature branch / pull request
                  | Docker Agent: image build and Trivy image/IaC gates
                  |
 develop ---------+--> Artifact Registry: cloud-native-api-dev:<SHA>, latest
-                        |
-                        +--> Cloud Run dev delivery deferred to Phase 17
+                         |
+                         +--> zero-traffic Cloud Run dev candidate
+                              --> tagged-URL smoke tests
+                              --> exact development revision promotion
 
 main --> GitHub Actions validation --> Workload Identity Federation
                                            |
@@ -77,11 +79,9 @@ main --> GitHub Actions validation --> Workload Identity Federation
 Terraform owns stable infrastructure such as services, identities, IAM,
 Secret Manager containers and references, probes, scaling, observability, and
 the billing budget. Jenkins owns development image build, security scanning,
-and publication; GitHub Actions owns production image publication, explicit
-revisions, temporary candidate tags, smoke tests, and traffic promotion.
-Supabase projects and secret payload values remain outside Terraform. Phase 16
-does not deploy new development images; the last healthy dev revision remains
-active until Phase 17 adds that delivery path.
+publication, candidate revisions, smoke tests, and promotion. GitHub Actions
+owns the equivalent production publication and delivery path. Supabase projects
+and secret payload values remain outside Terraform.
 
 See [`docs/architecture.md`](docs/architecture.md) for the complete ownership
 and signal-flow model.
@@ -146,15 +146,16 @@ data should be discarded intentionally.
 
 ## Local Jenkins stack
 
-Phases 13-16 provide a separate Compose stack with a persistent Controller, one
+Phases 13-17 provide a separate Compose stack with a persistent Controller, one
 Build/Test Agent, and one Docker Agent. JCasC recreates the logical agents,
 credentials, security settings, and GitHub Multibranch job from tracked
 configuration; only secret values remain in ignored `jenkins/.env`. The
 Controller coordinates jobs but has zero executors. The current Jenkins CI
 pipeline routes Gradle, testing, and Phase 15 gates to `build-test`. The
 `docker` agent performs a separate checkout, builds the SHA-tagged development
-image, runs Trivy image and Terraform gates, and publishes only after a clean
-direct `develop` build. Jenkins Cloud Run delivery remains Phase 17 work.
+image, runs Trivy image and Terraform gates, and only on a clean direct
+`develop` build publishes the image, deploys a no-traffic candidate, smoke-tests
+it, and promotes that exact revision.
 
 After the first-time bootstrap is complete, start all three services with:
 
@@ -217,7 +218,8 @@ Checkout -> Build -> Test -> Checkstyle -> runtime dependency scan
          -> build dependency scan -> Gitleaks
          -> Docker Agent checkout -> Docker build
          -> Trivy image scan -> Trivy IaC scan
-         -> conditional development push
+         -> conditional development push -> no-traffic candidate
+         -> tagged-URL smoke tests -> exact revision promotion
 ```
 
 JUnit and static-analysis results are interpreted by Jenkins, while HTML,
@@ -226,12 +228,12 @@ stage blocks every later stage, but its `post` publishers still preserve the
 available diagnostic evidence. Jenkins then reports the final result to the
 GitHub commit. Feature branches and pull requests never receive the registry
 credential; a direct `develop` build publishes `cloud-native-api-dev:<SHA>` and
-its package-local `latest`. Jenkins never publishes from `main` and does not
-deploy Cloud Run in Phase 16.
+its package-local `latest`, then deploys only the SHA image to development.
+Jenkins never publishes or deploys from `main`.
 
 | Git branch | Image owner/package | Cloud Run service | Database | Current delivery |
 |---|---|---|---|---|
-| `develop` | Jenkins / `cloud-native-api-dev` | `cloud-native-api-dev` | Supabase development | image publication only; deploy begins in Phase 17 |
+| `develop` | Jenkins / `cloud-native-api-dev` | `cloud-native-api-dev` | Supabase development | automatic candidate tests and exact-revision promotion |
 | `main` | GitHub Actions / `cloud-native-api-prod` | `cloud-native-api-prod` | Supabase production | reviewer-gated smoke test and promotion |
 
 ### Branch workflow
@@ -342,6 +344,7 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
 - [Phase 14 verification](docs/phase-14-verification.md)
 - [Phase 15 verification](docs/phase-15-verification.md)
 - [Phase 16 verification](docs/phase-16-verification.md)
+- [Phase 17 verification](docs/phase-17-verification.md)
 
 ## Roadmap status
 
@@ -354,6 +357,7 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
   as code, GitHub integration, and continuous integration.
 - **Phase 16 complete**: Trivy container/IaC gates, verified Jenkins development
   publishing, and GitHub Actions production publishing and delivery.
-- **Phase 17 planned**: Jenkins development deployment extends the separate
-  learning track without replacing GitHub Actions production delivery or the
-  Terraform ownership model.
+- **Phase 17 implemented and verified on `develop`**: Jenkins development
+  candidate deployment, smoke testing, exact-revision promotion, failure-safe
+  cleanup, and Terraform convergence. The final Jenkins `main` exclusion
+  observation remains part of integration.

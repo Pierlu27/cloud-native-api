@@ -27,6 +27,7 @@ This folder contains the project documentation used by the spec-driven workflow.
 - `phase-14-verification.md` - Phase 14 JCasC, Multibranch, webhook, status, and drift evidence
 - `phase-15-verification.md` - completed Jenkins CI, failure-gate, reporting, redaction, and cache-reuse evidence
 - `phase-16-verification.md` - completed Trivy gates, cache, controlled failures, dev/prod publishing, and production delivery evidence
+- `phase-17-verification.md` - Jenkins development candidate, smoke-test, exact-promotion, failure, cleanup, and Terraform evidence
 
 ## Evidence organization
 

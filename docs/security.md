@@ -70,17 +70,32 @@ environment, and the JCasC-managed Credentials Store. The pipeline binds it
 only around registry authentication, uses `--password-stdin`, and removes its
 temporary Docker configuration through an exit trap.
 
+Phase 17 keeps publication and delivery authority separate:
+
+| Jenkins identity | Narrow permission | Credential binding |
+|---|---|---|
+| `jenkins-artifact-publisher` | Artifact Registry writer on the shared application repository | direct-`develop` Docker Push only |
+| `jenkins-cloud-run-dev-deployer` | repository reader, developer on only `cloud-native-api-dev`, and user of only the development runtime identity | direct-`develop` Cloud Run authentication only |
+
+The deployer cannot update production, write images, or read application
+secrets. Its manually created JSON key follows the same non-Terraform storage
+boundary as the publisher key, but JCasC registers it under independent
+credential ID `cloud-run-dev-deployer-key-base64`. The pipeline validates its
+service-account email, uses a unique temporary `CLOUDSDK_CONFIG`, deletes the
+decoded key immediately after authentication, and removes all Cloud CLI state
+from an always-run cleanup block.
+
 The Jenkins Multibranch source does not discover fork pull requests. Internal
 branch code is nevertheless trusted: it controls a `Jenkinsfile` that runs on
 agents with Docker socket access and can refer to globally registered
 credentials by ID. This local stack must not execute arbitrary public code or
 serve as a shared production Jenkins installation.
 
-The Jenkins key must be rotated after suspected exposure and removed when the
-local publisher is retired. `docs/jenkins.md` contains the create, replace,
-verify, disable, and delete procedure. Creating a temporary organization-policy
-exception does not weaken the runtime key permissions, but that exception must
-be removed immediately after key creation.
+Each Jenkins key must be rotated independently after suspected exposure and
+removed when its local publisher or deployer is retired. `docs/jenkins.md`
+contains the create, replace, verify, disable, and delete procedures. Creating
+a temporary organization-policy exception does not weaken runtime key
+permissions, but that exception must be removed immediately after key creation.
 
 ## Runtime secrets and rotation
 

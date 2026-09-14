@@ -8,8 +8,10 @@ Smee relay. Phase 15 implements the complete Jenkins CI sequence with reporting
 plugins, Gitleaks, Testcontainers access, and persistent tool caches. Phase 16
 adds container build and Trivy security gates on the Docker Agent, then lets
 Jenkins publish development images while GitHub Actions retains production
-publishing and delivery. The root `Jenkinsfile` is the revision-owned pipeline
-definition.
+publishing and delivery. Phase 17 completes the Jenkins development path with
+zero-traffic candidate deployment, smoke testing, exact-revision promotion,
+and unconditional cleanup. The root `Jenkinsfile` is the revision-owned
+pipeline definition.
 
 ## Architecture
 
@@ -51,7 +53,8 @@ The project owns four reproducible images:
   pinned Gitleaks binary. Gradle is supplied by the repository's versioned
   wrapper rather than installed globally; and
 - `jenkins/docker-agent/Dockerfile` combines the official inbound-agent runtime
-  with a pinned Docker CLI, Buildx, Compose, Git, curl, and Trivy `0.74.0`; and
+  with a pinned Docker CLI, Buildx, Compose, Git, curl, Trivy `0.74.0`, Google
+  Cloud CLI `584.0.0`, and `jq` `1.8.2`; and
 - `jenkins/webhook-relay/Dockerfile` installs the pinned official Smee client
   in a small Node image and runs it as the unprivileged `node` user.
 
@@ -95,7 +98,7 @@ docker compose down -v    -> also removes Controller, Gradle, NVD, and Trivy vol
 ## Current JCasC bootstrap
 
 Copy `jenkins/agent-secrets.env.example` to the ignored `jenkins/.env` and
-replace every placeholder. The local file supplies six different categories:
+replace every placeholder. The local file supplies seven different categories:
 
 - administrator identity and password used by JCasC;
 - GitHub username and fine-grained token used for discovery, checkout, and
@@ -104,6 +107,8 @@ replace every placeholder. The local file supplies six different categories:
   credential `nvd-api-key` because Jenkins cannot read GitHub Actions secrets;
 - the Base64-encoded Jenkins publisher key, registered as secret-text
   credential `artifact-registry-publisher-key-base64`;
+- the independent Base64-encoded development deployer key, registered as
+  secret-text credential `cloud-run-dev-deployer-key-base64`;
 - the two Jenkins-generated inbound-agent secrets; and
 - the temporary Smee channel URL used by the webhook relay.
 
@@ -283,6 +288,93 @@ user-managed key when the local Jenkins publisher is retired. An organization
 policy can prohibit key creation; any approved temporary exception must be
 removed immediately after creating the replacement key.
 
+## Phase 17 development continuous delivery
+
+Only a direct `develop` job can enter the delivery stages. Declarative `when`
+conditions require `BRANCH_NAME == 'develop'` and reject any build with a
+`CHANGE_ID`, so a pull request whose destination is `develop` still cannot
+bind the deployment credential. Feature, pull-request, and `main` jobs continue
+through validation but stop before both development publication and delivery.
+
+`disableConcurrentBuilds()` serializes the complete Multibranch child job. A
+second `develop` run therefore cannot finish first and promote an older commit
+after a newer delivery has already started.
+
+After Phase 16 publishes the exact SHA image, the Docker Agent performs:
+
+```text
+Prepare metadata
+  -> authenticate the development deployer in an isolated CLOUDSDK_CONFIG
+  -> deploy exact SHA image as a unique no-traffic revision
+  -> resolve the temporary tag URL from Cloud Run status
+  -> smoke-test readiness and /api/jobs
+  -> promote that exact tested revision to 100%
+  -> verify that exact revision owns 100% traffic
+  -> always remove the tag and temporary authentication
+```
+
+The revision name combines service, abbreviated commit, and Jenkins build
+number, for example:
+
+```text
+cloud-native-api-dev-sha-0e64f8b7-build-7
+```
+
+The build number avoids a Cloud Run revision-name collision when the same Git
+commit is rebuilt. The temporary tag also includes the build number. Its URL is
+read from `status.traffic`; Jenkins does not guess Cloud Run's hostname format.
+Removing this tag removes only the candidate-specific route, never the revision
+or its stable traffic assignment.
+
+The first smoke request calls `/actuator/health/readiness`; the second calls
+the read-only, database-backed `/api/jobs` path. Both use finite connection and
+request timeouts plus bounded retry. The boolean
+`FORCE_SMOKE_TEST_FAILURE` parameter raises a deterministic error only after
+both real calls have passed. It exists to prove that every failure before
+promotion leaves the previous stable revision untouched.
+
+`gcloud run deploy --no-traffic` creates the candidate without changing normal
+service routing. Promotion uses `--to-revisions <recorded-revision>=100`; it
+does not use the mutable `LATEST` selector. Jenkins then reads Cloud Run state
+again and fails unless that same recorded revision owns exactly 100% traffic.
+
+### Development deployer credential
+
+Terraform creates `jenkins-cloud-run-dev-deployer` independently from the image
+publisher. The deployer can read the shared repository, update only
+`cloud-native-api-dev`, and act only as `cloud-native-api-dev-runtime`. It has no
+production service binding and cannot write images.
+
+Terraform deliberately does not create the JSON key. Its Base64 encoding is
+stored only in ignored `jenkins/.env`, passed to the Controller, and registered
+by JCasC as `cloud-run-dev-deployer-key-base64`. The Jenkinsfile binds it only
+inside the direct-development authentication stage. It validates the decoded
+credential type and exact service-account email before activation.
+
+Every run creates a unique `/tmp/jenkins-gcloud-config.*` directory and points
+`CLOUDSDK_CONFIG` at it. The decoded key file is removed immediately after
+authentication. `post { always { ... } }` later removes the candidate tag when
+present, revokes the active account, and deletes the configuration directory on
+success or failure. Shell tracing is disabled during cleanup so Cloud Run JSON
+is not expanded into the console log; explicit cleanup results remain visible.
+
+Rotate this deployer key independently from the publisher key:
+
+1. create a second user-managed key outside Terraform;
+2. replace only `JENKINS_CLOUD_RUN_DEV_DEPLOYER_KEY_BASE64` in ignored
+   `jenkins/.env`;
+3. recreate the Controller so JCasC registers the replacement value;
+4. verify a direct `develop` candidate deployment and cleanup; and
+5. disable and delete the previous key by its key ID.
+
+Do not remove the old key before the replacement run succeeds. If exposure is
+suspected, disable it immediately and keep Jenkins development delivery stopped
+until the replacement credential has been verified. A hosted Jenkins should
+replace this local long-lived-key compromise with short-lived workload identity.
+
+See `docs/phase-17-verification.md` for the successful delivery, controlled
+failure, traffic, cleanup, and Terraform convergence evidence.
+
 ## Historical Phase 13 manual bootstrap
 
 The following procedure records the manual Phase 13 starting point. It is no
@@ -388,7 +480,8 @@ Controller is ready. The inbound-agent process retries automatically; a final
 - both permanent-node definitions and their labels, remote roots, launchers,
   executor counts, and Remoting work-directory settings;
 - the local security realm and authorization policy;
-- the GitHub, NVD, and Artifact Registry credential metadata; and
+- the GitHub, NVD, Artifact Registry, and Cloud Run deployer credential
+  metadata; and
 - the `cloud-native-api` Multibranch parent job.
 
 The real administrator password and GitHub token are never present in the

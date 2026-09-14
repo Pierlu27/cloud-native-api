@@ -454,3 +454,58 @@ account, stage-local binding, temporary Docker configuration, restored
 organization policy, and trusted-repository-only Jenkins model reduce exposure
 without pretending to eliminate that risk. A hosted Jenkins installation
 should replace the key with a short-lived workload identity mechanism.
+
+## ADR-020 Jenkins development delivery and exact-revision promotion
+
+**Decision**: complete the Jenkins path only for the development environment.
+A successful direct `develop` build may publish and deploy
+`cloud-native-api-dev`; GitHub Actions remains the sole production publisher
+and deployer from `main`. Jenkins feature, pull-request, and `main` jobs retain
+validation responsibilities but cannot bind the development deployment
+credential. Production approval remains a GitHub Environment concern rather
+than adding a second Jenkins approval system.
+
+Create `jenkins-cloud-run-dev-deployer` independently from both
+`jenkins-artifact-publisher` and `cloud-native-api-dev-runtime`. Grant it
+repository read access, service-scoped Cloud Run developer access only on
+`cloud-native-api-dev`, and `iam.serviceAccountUser` only on the development
+runtime identity. Terraform owns those identities and bindings but never
+creates the deployer key. The local Controller registers a manually created
+Base64-encoded key as secret text; the Docker Agent receives it only within the
+direct-development authentication stage and uses an isolated temporary
+`CLOUDSDK_CONFIG`.
+
+Deploy the exact full-SHA image as a uniquely named no-traffic candidate. Add a
+temporary tag, resolve its URL from Cloud Run status, and call readiness plus a
+representative database-backed endpoint. Promote only the recorded revision
+name that passed both calls, then verify that same revision at 100% traffic.
+Never use `latest` or Cloud Run's `LATEST` selector as a deployment or promotion
+decision. Remove candidate tags and temporary authentication on every outcome,
+and serialize Jenkins builds to prevent an older execution from promoting
+after a newer one.
+
+Terraform continues to ignore pipeline-owned image, revision, and traffic
+changes after initial service bootstrap. Refresh-only operations may record
+new computed Cloud Run metadata in state, but Terraform must not reverse a
+pipeline promotion. Structural configuration, probes, scaling, runtime
+identity, IAM, and numeric Secret Manager references remain Terraform-owned.
+
+**Reason**: running the complete development delivery cycle in Jenkins teaches
+candidate isolation, runtime verification, least-privilege deployment, and
+failure-safe promotion without creating two systems capable of modifying
+production. Separating publisher, deployer, and runtime identities limits the
+effect of each credential and makes their responsibilities observable.
+
+A no-traffic candidate proves the new revision before users reach it. Resolving
+the tagged URL avoids relying on hostname construction, while promoting an
+explicit recorded revision prevents a concurrent or merely newer revision from
+being selected accidentally. The controlled post-smoke failure demonstrates
+that readiness alone is not authority to receive traffic.
+
+The service-account key is a conscious limitation of the local-only learning
+stack. It is long-lived, Base64 is not encryption, and Docker socket access
+makes trusted repository code security-critical. Stage-local binding, narrow
+IAM, temporary configuration, cleanup, rotation, and disabled fork discovery
+reduce risk but do not make this equivalent to GitHub's short-lived WIF flow. A
+hosted Jenkins deployment should replace the key with workload identity before
+accepting untrusted code or production authority.

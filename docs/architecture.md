@@ -13,18 +13,25 @@ Developer machine
 ```
 
 The local stack remains independent from the managed cloud database. Local
-credentials, including the Jenkins publisher key, belong in ignored environment
-files and are not Terraform inputs.
+credentials, including the Jenkins publisher and development deployer keys,
+belong in ignored environment files and are not Terraform inputs.
 
-## Cloud architecture after Phase 16
+## Cloud architecture after Phase 17
 
 ```text
 Local Jenkins ── service-account key ──► Jenkins publisher
                                                │ repository writer
                                                ▼
 Artifact Registry / cloud-native-api-dev:<SHA> + latest
-             │ published only; Phase 17 adds development deployment
-Public HTTPS ──► development Cloud Run keeps its last healthy revision
+             │ exact SHA                       ▲
+             ▼                                 │ development runtime identity
+Jenkins development deployer ──► Cloud Run development control plane
+                                 │ candidate, smoke test, traffic
+                                 ▼
+Public HTTPS ───────────────────► development Cloud Run revisions
+                                 │
+                                 ▼
+                      Secret Manager ──► Supabase development
 
 GitHub Actions ── short-lived OIDC ──► Workload Identity Federation
              ├─► GitHub publisher ──► Artifact Registry / cloud-native-api-prod
@@ -36,14 +43,12 @@ Public HTTPS ──────────────────────�
                                               ▼
                                    Secret Manager ──► Supabase production
 
-Development Cloud Run keeps its last healthy revision during the Phase 16-to-17
-transition; its runtime identity, secrets, and Supabase database remain separate.
 ```
 
 Jenkins builds and scans every trusted internal branch or pull request, but
-publishes `cloud-native-api-dev` only for a clean direct `develop` build. Phase
-16 does not deploy that package, so the last healthy development revision stays
-active until Phase 17 introduces Jenkins delivery.
+publishes `cloud-native-api-dev` only for a clean direct `develop` build. It
+then deploys the full-SHA image as a no-traffic candidate, tests its tagged
+URL, and assigns development traffic only to that exact verified revision.
 
 GitHub Actions retains its validation gates for `develop` and `main`, but only a
 clean direct `main` run publishes `cloud-native-api-prod` and invokes the
@@ -54,10 +59,11 @@ traffic only after both smoke tests succeed.
 The Jenkins and GitHub publisher service accounts can write only to the shared
 application repository; package naming separates their operational ownership
 but not their repository-level IAM permissions. Neither publisher deploys or
-runs the application. The production deployer can update only its Cloud Run
-service and attach its existing runtime identity; it does not publish images or
-read application secrets. Cloud Run uses the dedicated environment runtime
-account when it executes a container, and that identity can read only its three
+runs the application. The Jenkins development deployer and GitHub production
+deployer can each update only their assigned Cloud Run service and attach only
+that environment's runtime identity; neither publishes images or reads
+application secrets. Cloud Run uses the dedicated environment runtime account
+when it executes a container, and that identity can read only its three
 application secrets. Google Cloud's managed Cloud Run service agent retrieves
 the selected container image.
 

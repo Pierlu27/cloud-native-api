@@ -644,6 +644,7 @@ pipeline {
                         if (env.BRANCH_NAME == 'develop' && !env.CHANGE_ID) {
                             sh '''
                                 set -u
+                                set +x
 
                                 cleanup_failed=0
 

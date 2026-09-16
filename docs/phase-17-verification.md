@@ -1,6 +1,6 @@
 # Phase 17 Jenkins development delivery verification
 
-Verification window: 2026-09-13 through 2026-09-14.
+Verification window: 2026-09-13 through 2026-09-16.
 
 Phase 17 adds development-only Cloud Run delivery to the Jenkins pipeline.
 Evidence is recorded textually; screenshots are optional and are not required
@@ -22,13 +22,35 @@ Every Jenkins delivery stage evaluates the same direct-build predicate:
 `BRANCH_NAME == 'develop'` and no `CHANGE_ID`. The deployment credential is
 bound only after that predicate passes. Feature build 2 and the PR-55 build
 executed all CI, Docker, and Trivy gates while skipping image publication and
-every delivery stage. The `main` exclusion follows the same evaluated
-predicate and remains to be observed once this phase reaches `main` through the
-normal integration path.
+every delivery stage.
 
 PR [#55](https://github.com/Pierlu27/cloud-native-api/pull/55) merged the Phase
 17 implementation into `develop` as commit
 `0e64f8b711c0dee53374ebba4eb33ae0368e7cc0`.
+
+## Final integration and production independence
+
+PR [#57](https://github.com/Pierlu27/cloud-native-api/pull/57) integrated the
+completed development path into `main`. The resulting Jenkins `main` build 5
+finished successfully after running the CI, Docker, and Trivy gates. It skipped
+`Docker Push` and every development delivery stage from `Prepare Development
+Delivery` through `Verify Development Traffic`; therefore the development
+deployer credential was never bound in that build.
+
+The corresponding GitHub Actions
+[run 35073205280](https://github.com/Pierlu27/cloud-native-api/actions/runs/35073205280)
+completed its production-owned path successfully: image publication, candidate
+deployment, smoke tests, promotion, traffic verification, and candidate-tag
+cleanup. The production revision used the merged `main` commit:
+
+```text
+Revision: cloud-native-api-prod-sha-8611cd68-run-35073205280
+Traffic:  100%
+```
+
+Together these runs prove the ownership boundary rather than merely the branch
+condition in isolation: Jenkins observes and validates `main` without
+deploying it, while GitHub Actions remains the only production delivery owner.
 
 ## Reproducible delivery tooling
 
@@ -162,7 +184,7 @@ name rather than using `LATEST`.
 
 ## Terraform convergence
 
-The first final Terraform plan detected only that the computed
+The first Terraform convergence check detected only that the computed
 `environment_cloud_run_latest_ready_revisions.development` output was stale.
 A reviewed `terraform plan -refresh-only` recorded the pipeline-owned Artifact
 Registry, IAM metadata, Cloud Run revision, and traffic observations without
@@ -179,6 +201,19 @@ reported:
 No changes. Your infrastructure matches the configuration.
 ```
 
+After the final `develop` and `main` integrations created newer development and
+production revisions, the same controlled procedure was repeated. The second
+refresh-only plan recorded the already-existing Cloud Run observations for
+both environments and again reported:
+
+```text
+Resources: 0 added, 0 changed, 0 destroyed
+```
+
+Its temporary binary plan was deleted, and the final normal plan again
+reported `No changes`. Neither refresh-only apply created a revision, changed
+traffic, or modified any remote resource.
+
 This confirms the intended ownership boundary: Terraform retains stable
 infrastructure and IAM ownership, while Jenkins creates development revisions
 and promotes traffic without causing corrective infrastructure drift.
@@ -186,7 +221,7 @@ and promotes traffic without causing corrective infrastructure drift.
 ## Result
 
 The direct-development success path, deterministic non-promotion path,
-external-dependency failure path, exact-revision traffic checks, and
-unconditional credential/tag cleanup all behaved as designed. The only
-remaining integration observation is the expected Jenkins `main` delivery skip
-after the completed phase reaches `main`.
+external-dependency failure path, exact-revision traffic checks, unconditional
+credential/tag cleanup, Jenkins `main` exclusion, and independent GitHub
+Actions production delivery all behaved as designed. Every Phase 17 acceptance
+criterion is now supported by observed evidence.

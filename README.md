@@ -5,10 +5,9 @@ cloud-native CI/CD platform on Google Cloud. The repository is intentionally
 educational: every phase starts from explicit requirements, records technical
 decisions, and retains text-based verification evidence.
 
-Phases 0-16 are complete. Phase 17 development delivery is implemented and
-verified on `develop`, with its final `main` exclusion observation pending
-integration. Jenkins owns development publishing and delivery; GitHub Actions
-retains production publishing and delivery.
+Phases 0-17 are complete. Jenkins owns development publishing and delivery;
+GitHub Actions retains production publishing and delivery. Both ownership
+paths are verified through real branch integrations.
 
 ## What the project demonstrates
 
@@ -29,7 +28,8 @@ retains production publishing and delivery.
 - a Terraform-managed monthly billing budget, scale-to-zero configuration,
   cost inventory, and reviewed teardown procedure; and
 - a persistent local Jenkins Controller configured through JCasC, a GitHub
-  Multibranch job, and separate static Build/Test and Docker inbound agents;
+  Multibranch job, separate static Build/Test and Docker inbound agents, and a
+  Smee webhook relay;
 - a Jenkins CI pipeline with tests, Checkstyle, dependency scans, full-history
   secret scanning, archived reports, and GitHub commit statuses; and
 - pinned Trivy image/IaC gates, a persistent vulnerability cache, and
@@ -146,18 +146,18 @@ data should be discarded intentionally.
 
 ## Local Jenkins stack
 
-Phases 13-17 provide a separate Compose stack with a persistent Controller, one
-Build/Test Agent, and one Docker Agent. JCasC recreates the logical agents,
-credentials, security settings, and GitHub Multibranch job from tracked
-configuration; only secret values remain in ignored `jenkins/.env`. The
-Controller coordinates jobs but has zero executors. The current Jenkins CI
-pipeline routes Gradle, testing, and Phase 15 gates to `build-test`. The
-`docker` agent performs a separate checkout, builds the SHA-tagged development
-image, runs Trivy image and Terraform gates, and only on a clean direct
-`develop` build publishes the image, deploys a no-traffic candidate, smoke-tests
-it, and promotes that exact revision.
+Phases 13-17 provide a separate four-service Compose stack with a persistent
+Controller, one Build/Test Agent, one Docker Agent, and a Smee webhook relay.
+JCasC recreates the logical agents, credentials, security settings, and GitHub
+Multibranch job from tracked configuration; only secret values remain in
+ignored `jenkins/.env`. The Controller coordinates jobs but has zero executors.
+The current Jenkins CI pipeline routes Gradle, testing, and Phase 15 gates to
+`build-test`. The `docker` agent performs a separate checkout, builds the
+SHA-tagged development image, runs Trivy image and Terraform gates, and only on
+a clean direct `develop` build publishes the image, deploys a no-traffic
+candidate, smoke-tests it, and promotes that exact revision.
 
-After the first-time bootstrap is complete, start all three services with:
+After the first-time bootstrap is complete, start all four services with:
 
 ```bash
 docker compose --env-file jenkins/.env -f jenkins/docker-compose.yml up -d
@@ -357,7 +357,7 @@ inventory, current pricing boundaries, selective image cleanup, and reviewed
   as code, GitHub integration, and continuous integration.
 - **Phase 16 complete**: Trivy container/IaC gates, verified Jenkins development
   publishing, and GitHub Actions production publishing and delivery.
-- **Phase 17 implemented and verified on `develop`**: Jenkins development
+- **Phase 17 complete**: Jenkins development
   candidate deployment, smoke testing, exact-revision promotion, failure-safe
-  cleanup, and Terraform convergence. The final Jenkins `main` exclusion
-  observation remains part of integration.
+  cleanup, Terraform convergence, and the Jenkins `main` delivery exclusion
+  are verified through real integrations.

@@ -6,7 +6,8 @@ The repository uses four related but separate processes:
 
 1. Jenkins validates trusted internal branches and pull requests. A clean
    direct `develop` build publishes the immutable development image through its
-   dedicated publisher, but Phase 16 does not yet deploy that image.
+   dedicated publisher, then uses an independent development deployer to test a
+   zero-traffic candidate and promote that exact revision.
 2. GitHub Actions retains its validation jobs for `develop` and `main`. Only a
    clean direct or manually dispatched `main` run publishes the production
    image and deploys it through the production deployer identity.
@@ -20,7 +21,7 @@ The repository uses four related but separate processes:
 
 Terraform is still executed manually: it does not watch Git commits, start
 GitHub Actions or Jenkins, build images, or run deployments. Neither CI system
-runs Terraform in Phase 16 and therefore cannot silently change
+runs Terraform in Phase 17 and therefore cannot silently change
 Terraform-managed probes, scaling, resources, runtime identity, or numeric
 secret references.
 
@@ -69,9 +70,9 @@ and one Artifact Registry repository. The shared project keeps the learning
 environment inexpensive; environment-specific Cloud Run services, identities,
 secrets, and Supabase projects provide the required operational boundary.
 
-| Branch | Image publisher and package | Cloud Run service | Phase 16 delivery | Database |
+| Branch | Image publisher and package | Cloud Run service | Current delivery | Database |
 | --- | --- | --- | --- | --- |
-| `develop` | Jenkins -> `cloud-native-api-dev` | `cloud-native-api-dev` | deferred to Phase 17; last healthy revision remains active | dedicated development Supabase project |
+| `develop` | Jenkins -> `cloud-native-api-dev` | `cloud-native-api-dev` | automatic candidate smoke test and exact-revision promotion | dedicated development Supabase project |
 | `main` | GitHub Actions -> `cloud-native-api-prod` | `cloud-native-api-prod` | production reviewer, smoke test, and promotion | dedicated production Supabase project |
 
 The intended promotion path is:
@@ -79,7 +80,7 @@ The intended promotion path is:
 ```text
 feature branch -> pull request to develop -> validation
                -> merge to develop -> Jenkins publishes development image
-               -> Phase 17 will add development deployment and verification
+               -> Jenkins deploys/tests/promotes development candidate
                -> pull request from develop to main
                -> production approval -> GitHub production deployment
 ```
@@ -93,9 +94,10 @@ Both GitHub Environments expose only non-sensitive deployment metadata:
 | `production` | `CLOUD_RUN_SERVICE` | `cloud-native-api-prod` |
 | `production` | `WIF_DEPLOYER_SERVICE_ACCOUNT` | `github-cloud-run-prod-deployer@project-c42baf60-7736-408b-9ff.iam.gserviceaccount.com` |
 
-The development values remain provisioned as historical infrastructure but are
-not selected by the Phase 16 GitHub workflow. The production values remain
-active.
+The development GitHub Environment values remain provisioned as historical
+infrastructure but are not selected by the current GitHub workflow. Jenkins
+uses its own development resource metadata and credential. The production
+GitHub Environment values remain active.
 
 The repository-level WIF configuration authenticates the GitHub image
 publisher through `WIF_SERVICE_ACCOUNT` and identifies the Google WIF provider
@@ -119,6 +121,9 @@ runtime access remain separated per environment:
 
 - the retained `github-cloud-run-dev-deployer` may be impersonated only by its
   mapped development identity; it may update only `cloud-native-api-dev` and
+  attach only the development runtime identity;
+- `jenkins-cloud-run-dev-deployer` uses a Jenkins-managed local credential, may
+  update only `cloud-native-api-dev`, may read the shared repository, and may
   attach only the development runtime identity;
 - the production workflow may impersonate only
   `github-cloud-run-prod-deployer`; that deployer may update only
@@ -437,6 +442,13 @@ Phase 5 verified image tag
 
 ## Automated Cloud Run delivery
 
+The project has two mutually exclusive delivery owners: Jenkins targets only
+development from a direct `develop` build, while GitHub Actions targets only
+production from `main`. Their service accounts have no binding on the other
+environment's Cloud Run service.
+
+### GitHub Actions production delivery
+
 `.github/workflows/ci.yml` remains the production delivery orchestrator. After
 its main-only `image-publish` job succeeds, it calls the reusable
 `.github/workflows/cloud-run-deploy.yml` workflow with package
@@ -449,8 +461,7 @@ The reusable job reads `CLOUD_RUN_SERVICE` and
 `WIF_DEPLOYER_SERVICE_ACCOUNT` from the production GitHub Environment. It must
 wait for the configured reviewer, and administrators cannot bypass that rule.
 Production deployments share one concurrency group, so two runs cannot promote
-competing candidates. Development delivery is deliberately inactive between
-Phases 16 and 17.
+competing candidates. Jenkins serializes development builds independently.
 
 The reusable workflow performs this sequence:
 
@@ -494,6 +505,32 @@ The promotion step is skipped, that environment's normal traffic stays on the
 previous revision, and the `always()` cleanup step removes the temporary tag.
 This option is for acceptance testing, not normal deployment.
 
+### Jenkins development delivery
+
+After all Gradle, Dependency-Check, Gitleaks, Docker, and Trivy gates pass, a
+direct `develop` job publishes `cloud-native-api-dev:<full-SHA>` and enters the
+delivery stages. A feature, pull-request, or Jenkins `main` job cannot bind the
+development deployer credential or run these commands.
+
+The Docker Agent authenticates `jenkins-cloud-run-dev-deployer` inside a unique
+temporary `CLOUDSDK_CONFIG`. It deploys the exact SHA image with
+`--no-traffic`, using revision and tag names derived from the short SHA and
+Jenkins build number. The normal service URL therefore continues routing to
+the previously stable revision while the tagged candidate URL is tested.
+
+Jenkins resolves the tag URL from Cloud Run, calls
+`/actuator/health/readiness` and `/api/jobs` with bounded retries and timeouts,
+and promotes only the recorded candidate revision. A second Cloud Run read must
+show that exact revision at 100% or the build fails. The
+`FORCE_SMOKE_TEST_FAILURE` parameter deliberately fails only after both real
+requests, providing a repeatable non-promotion test.
+
+An always-run cleanup removes the temporary candidate tag and isolated Cloud
+CLI authentication after success or failure. The tag removal deletes only the
+temporary URL mapping; it neither deletes the revision nor changes the normal
+traffic assignment. `disableConcurrentBuilds()` prevents overlapping
+development jobs from promoting revisions out of order.
+
 ## Current Cloud Run configuration
 
 Phase 8 adopted the historical service and created baseline revision
@@ -501,9 +538,9 @@ Phase 8 adopted the historical service and created baseline revision
 Manager references. Phase 10 provisions `cloud-native-api-dev` and
 `cloud-native-api-prod` with the same Terraform-managed operational baseline,
 but with separate runtime identities and separate numeric secret references.
-The production delivery workflow creates subsequent immutable production
-revisions. During the Phase 16-to-17 transition, development retains its last
-healthy revision. Neither path replaces:
+The production GitHub Actions workflow and development Jenkins pipeline create
+subsequent immutable revisions for their respective services. Neither path
+replaces:
 
 - the runtime service account and numeric Secret Manager references
 - public invocation through the additive `allUsers` invoker member

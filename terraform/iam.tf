@@ -50,6 +50,18 @@ resource "google_service_account" "jenkins_publisher" {
   description  = "Identity used by local Jenkins to publish development images."
 }
 
+# Creates the separate identity used by local Jenkins to deploy development.
+
+# Keeping deployment authority separate from the image publisher means neither
+# long-lived local credential combines registry write and Cloud Run control.
+
+resource "google_service_account" "jenkins_deployer" {
+  project      = var.project_id
+  account_id   = var.jenkins_deployer_service_account_id
+  display_name = "Local Jenkins development Cloud Run deployer"
+  description  = "Identity used by local Jenkins to deploy only the development Cloud Run service."
+}
+
 # Manages the namespace used to represent GitHub identities in Google Cloud.
 
 # The pool alone grants no permissions and validates no tokens. Its OIDC
